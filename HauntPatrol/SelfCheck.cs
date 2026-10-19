@@ -60,8 +60,9 @@ static class SelfCheck
         Check(LoopCheck.Evaluate(tiny, Length(tiny), ghost) == LoopVerdict.TooSmall, "tiny scribble is ignored");
 
         // Zombie Invasion rules.
-        Check(ZombieInvasionEncounter.Judge(8, 0, 1, 5) == EncounterResult.Victory, "all zombies dealt with, brain alive: victory");
-        Check(ZombieInvasionEncounter.Judge(8, 0, 0, 5) == EncounterResult.Failure, "brain destroyed: failure");
+        var wave = ZombieInvasionEncounter.TotalZombies;
+        Check(ZombieInvasionEncounter.Judge(wave, 0, 1, 5) == EncounterResult.Victory, "all zombies dealt with, brain alive: victory");
+        Check(ZombieInvasionEncounter.Judge(wave, 0, 0, 5) == EncounterResult.Failure, "brain destroyed: failure");
         Check(ZombieInvasionEncounter.Judge(6, 2, 2, 0) == EncounterResult.Failure, "timer out with zombies left: failure");
         Check(ZombieInvasionEncounter.Judge(5, 0, 2, 5) == null, "wave still spawning: keep playing");
 

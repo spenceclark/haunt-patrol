@@ -16,14 +16,16 @@ public sealed class ZombieInvasionEncounter : IEncounter
     public double Duration => 25;
 
     // Wave and pacing tuning, DIPs and seconds.
-    public const int TotalZombies = 8, BrainHealth = 2;
-    const int MaxActive = 4;
-    const double FirstSpawn = 1.6, DemoSpawnGap = 1.75;
-    const double NormalTravel = 7, BruteTravel = 9.5; // seconds from the ground to the brain
+    public const int BrainHealth = 2;
+    const int MaxActive = 5;
+    const double FirstSpawn = 1.6, DemoSpawnGap = 1.3, SpawnGapMin = 1.1, SpawnGapJitter = 0.4;
+    const double NormalTravel = 5, BruteTravel = 7; // seconds from the ground to the brain
     const double BiteRange = 55, MinSpawnGap = 140, ClickPadding = 6;
     const double RiseSeconds = 0.6, HitPause = 0.35, Recoil = 40;
-    static readonly bool[] BrutePattern = [false, false, true, false, false, true, false, false];
-    static readonly double[] DemoSpawnX = [0.25, 0.7, 0.45, 0.15, 0.85, 0.35, 0.6, 0.5];
+    // One entry per zombie in the wave: 12 zombies, 3 of them brutes.
+    static readonly bool[] BrutePattern = [false, false, true, false, false, false, true, false, false, false, true, false];
+    static readonly double[] DemoSpawnX = [0.25, 0.7, 0.45, 0.15, 0.85, 0.35, 0.6, 0.1, 0.9, 0.3, 0.75, 0.5];
+    public static readonly int TotalZombies = BrutePattern.Length;
 
     enum ZombieState { Spawning, Walking, Hit, Dying, Removed }
 
@@ -57,8 +59,7 @@ public sealed class ZombieInvasionEncounter : IEncounter
     public void Initialize(EncounterContext c)
     {
         _c = c;
-        // ~30% up from the bottom, clear of the taskbar so it stays visible in recordings.
-        _brainPos = new Point(c.Width * (c.Demo ? 0.5 : 0.35 + c.Random.NextDouble() * 0.3), c.Height * 0.7);
+        _brainPos = new Point(c.Width / 2, c.Height / 2);
 
         // Brain and blaster are never clicked: click-through layer.
         _brain = c.Spawn("brain", _brainPos.X, _brainPos.Y, onEffectsLayer: true);
@@ -120,7 +121,7 @@ public sealed class ZombieInvasionEncounter : IEncounter
         if (_spawned < TotalZombies && _nextSpawn <= 0 && active < MaxActive)
         {
             SpawnZombie();
-            _nextSpawn = _c.Demo ? DemoSpawnGap : 1.5 + _c.Random.NextDouble() * 0.5;
+            _nextSpawn = _c.Demo ? DemoSpawnGap : SpawnGapMin + _c.Random.NextDouble() * SpawnGapJitter;
         }
 
         foreach (var z in _zombies) Step(z, dt);
