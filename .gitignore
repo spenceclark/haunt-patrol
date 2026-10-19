@@ -1,0 +1,50 @@
+# Build output
+bin/
+obj/
+
+# ======================
+# Visual Studio / Rider
+# ======================
+.vs/
+.vscode/*.log
+.vscode/*.db
+*.suo
+*.user
+*.userprefs
+*.sln.docstates
+*.csproj.user
+
+# Rider
+.idea/
+
+# ======================
+# OS generated files
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# Build outputs
+# ======================
+*.apk
+*.aab
+*.exe
+*.app
+
+# ======================
+# Logs
+# ======================
+*.log
+
+# ======================
+# Local config / secrets
+# ======================
+.env
+.env.*
+
+
+*.jsonl
+
+!.env.example
+
+

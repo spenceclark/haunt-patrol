@@ -1,0 +1,11 @@
+{
+  "id": "skeleton",
+  "width": 110, "height": 170,
+  "pivotX": 55, "pivotY": 170,
+  "animations": {
+    "idle":   { "source": "idle.png",   "frameWidth": 110, "frameHeight": 170, "frameCount": 2, "fps": 3,   "loop": true },
+    "attack": { "source": "attack.png", "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 2.5, "loop": false },
+    "hit":    { "source": "hit.png",    "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 4,   "loop": false },
+    "defeat": { "source": "defeat.png", "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 2.5, "loop": false }
+  }
+}
