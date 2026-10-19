@@ -28,6 +28,8 @@ public sealed class EncounterContext
     public EncounterResult? Outcome { get; private set; }
     /// <summary>Where a failure hits the screen; the penalty starts there.</summary>
     public Point? ImpactPoint { get; set; }
+    /// <summary>Diagnostic line in the app log.</summary>
+    public Action<string> Log { get; init; } = _ => { };
     public bool IsComplete { get; private set; }
 
     readonly SpriteAssetLoader _assets;

@@ -148,7 +148,8 @@ public sealed class HauntingController
             _ => new ZombieInvasionEncounter(),
         };
         var ctx = new EncounterContext(stage.Canvas, effects.Canvas, stage.SizeInDips, _assets, Audio,
-            DemoMode ? new Random(1031) : new Random(), DemoMode, encounter.Duration, () => Guard(OnEncounterComplete));
+            DemoMode ? new Random(1031) : new Random(), DemoMode, encounter.Duration, () => Guard(OnEncounterComplete))
+        { Log = Write };
         _encounter = encounter;
         _ctx = ctx;
 

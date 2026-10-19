@@ -8,7 +8,12 @@ namespace HauntPatrol.Encounters;
 
 public enum LoopVerdict { TooSmall, Open, Missed, Captured }
 
-/// <summary>Is a freehand stroke a closed loop around a point? All values in DIPs.</summary>
+/// <summary>
+/// Is a freehand stroke a closed loop around a point? All values in DIPs. Hands rarely end exactly where
+/// they started, so a loop is any of: the whole stroke when its end is near its start (the spec rule);
+/// the stroke up to where it first passes back near its start (overshoot); or the part enclosed where
+/// the stroke crosses its own path (a lasso with a tail). Each loop must itself be big enough.
+/// </summary>
 public static class LoopCheck
 {
     public const int MinPoints = 12;
@@ -17,8 +22,60 @@ public static class LoopCheck
     public static LoopVerdict Evaluate(IReadOnlyList<Point> stroke, double length, Point target)
     {
         if (stroke.Count < MinPoints || length < MinLength) return LoopVerdict.TooSmall;
-        if ((stroke[^1] - stroke[0]).Length > CloseDistance) return LoopVerdict.Open;
-        return Contains(stroke, target) ? LoopVerdict.Captured : LoopVerdict.Missed;
+        var closed = false;
+        foreach (var loop in Loops(stroke))
+        {
+            if (Contains(loop, target)) return LoopVerdict.Captured;
+            closed = true;
+        }
+        return closed ? LoopVerdict.Missed : LoopVerdict.Open;
+    }
+
+    static IEnumerable<IReadOnlyList<Point>> Loops(IReadOnlyList<Point> s)
+    {
+        if ((s[^1] - s[0]).Length <= CloseDistance) yield return s;
+
+        // Overshoot: first point, after a loop's worth of travel, that comes back near the start.
+        double travelled = 0;
+        for (var k = 1; k < s.Count; k++)
+        {
+            travelled += (s[k] - s[k - 1]).Length;
+            if (travelled >= MinLength && (s[k] - s[0]).Length <= CloseDistance)
+            {
+                yield return s.Take(k + 1).ToList();
+                break;
+            }
+        }
+
+        // Lasso: segment i crosses an earlier, non-adjacent segment j; x, s[j+1..i] is a loop.
+        for (var i = 2; i < s.Count - 1; i++)
+        for (var j = 0; j < i - 1; j++)
+        {
+            if (!Intersect(s[j], s[j + 1], s[i], s[i + 1], out var x)) continue;
+            var loop = new List<Point>(i - j + 1) { x };
+            for (var k = j + 1; k <= i; k++) loop.Add(s[k]);
+            if (loop.Count >= MinPoints && Perimeter(loop) >= MinLength) yield return loop;
+        }
+    }
+
+    static bool Intersect(Point a, Point b, Point c, Point d, out Point x)
+    {
+        x = default;
+        Vector r = b - a, q = d - c;
+        var den = Vector.CrossProduct(r, q);
+        if (Math.Abs(den) < 1e-9) return false; // parallel
+        var t = Vector.CrossProduct(c - a, q) / den;
+        var u = Vector.CrossProduct(c - a, r) / den;
+        if (t is < 0 or > 1 || u is < 0 or > 1) return false;
+        x = a + r * t;
+        return true;
+    }
+
+    static double Perimeter(IReadOnlyList<Point> loop)
+    {
+        var total = (loop[0] - loop[^1]).Length;
+        for (var k = 1; k < loop.Count; k++) total += (loop[k] - loop[k - 1]).Length;
+        return total;
     }
 
     /// <summary>Ray casting (even-odd); the polygon is closed implicitly from the last point back to the first.</summary>
@@ -202,7 +259,9 @@ public sealed class GhostTrapEncounter : IEncounter
         var core = _core!;
         _glow = _core = null;
 
-        switch (LoopCheck.Evaluate(_stroke, _strokeLength, _ghost.Center))
+        var verdict = LoopCheck.Evaluate(_stroke, _strokeLength, _ghost.Center);
+        _c.Log($"ghost loop: {verdict} ({_stroke.Count} pts, {_strokeLength:0} DIP long, ends {(_stroke[^1] - _stroke[0]).Length:0} DIP apart, ghost at {_ghost.Center.X:0},{_ghost.Center.Y:0})");
+        switch (verdict)
         {
             case LoopVerdict.Captured:
                 Win(glow, core, [.. _stroke]);

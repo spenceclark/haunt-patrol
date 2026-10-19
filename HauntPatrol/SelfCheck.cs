@@ -56,6 +56,18 @@ static class SelfCheck
         Check(LoopCheck.Evaluate(arc, Length(arc), ghost) == LoopVerdict.Open, "three-quarter arc is an open loop");
         var elsewhere = Circle(new Point(1200, 400), 120, 2 * Math.PI);
         Check(LoopCheck.Evaluate(elsewhere, Length(elsewhere), ghost) == LoopVerdict.Missed, "closed loop elsewhere misses");
+        var overshoot = Circle(ghost, 120, 2.4 * Math.PI);
+        Check(LoopCheck.Evaluate(overshoot, Length(overshoot), ghost) == LoopVerdict.Captured, "loop that overshoots its start still captures");
+        // Lasso: a tail along y=520 under the ghost, then an arc up over it and back down across the tail.
+        var lasso = Enumerable.Range(0, 41).Select(i => new Point(300 + i * 10, 520))
+            .Concat(Enumerable.Range(0, 60).Select(i =>
+            {
+                var a = (45 - i * 295.0 / 59) * Math.PI / 180;
+                return new Point(600 + 140 * Math.Cos(a), 420 + 140 * Math.Sin(a));
+            })).ToList();
+        Check(LoopCheck.Evaluate(lasso, Length(lasso), ghost) == LoopVerdict.Captured, "lasso with a lead-in tail captures");
+        var hook = lasso.Take(41 + 30).ToList(); // tail plus half the arc: never closes
+        Check(LoopCheck.Evaluate(hook, Length(hook), ghost) == LoopVerdict.Open, "hook that never closes stays open");
         var tiny = Circle(ghost, 20, 2 * Math.PI);
         Check(LoopCheck.Evaluate(tiny, Length(tiny), ghost) == LoopVerdict.TooSmall, "tiny scribble is ignored");
 
