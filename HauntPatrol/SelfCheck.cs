@@ -71,12 +71,36 @@ static class SelfCheck
         var tiny = Circle(ghost, 20, 2 * Math.PI);
         Check(LoopCheck.Evaluate(tiny, Length(tiny), ghost) == LoopVerdict.TooSmall, "tiny scribble is ignored");
 
-        // Zombie Invasion rules.
-        var wave = ZombieInvasionEncounter.TotalZombies;
-        Check(ZombieInvasionEncounter.Judge(wave, 0, 1, 5) == EncounterResult.Victory, "all zombies dealt with, brain alive: victory");
-        Check(ZombieInvasionEncounter.Judge(wave, 0, 0, 5) == EncounterResult.Failure, "brain destroyed: failure");
-        Check(ZombieInvasionEncounter.Judge(6, 2, 2, 0) == EncounterResult.Failure, "timer out with zombies left: failure");
-        Check(ZombieInvasionEncounter.Judge(5, 0, 2, 5) == null, "wave still spawning: keep playing");
+        // Ghost Trap stage 2: smaller loops count for small ghosts, and one loop catches at most one ghost.
+        var smallLoop = Circle(ghost, 50, 2 * Math.PI);
+        Check(LoopCheck.Evaluate(smallLoop, Length(smallLoop), [ghost], new GhostTrapOptions().SmallLoop).Verdict == LoopVerdict.Captured, "small loop captures a small ghost");
+        Check(LoopCheck.Evaluate(smallLoop, Length(smallLoop), ghost) == LoopVerdict.TooSmall, "same loop is too small for the big ghost");
+        var both = Circle(ghost, 250, 2 * Math.PI);
+        Check(LoopCheck.Evaluate(both, Length(both), [ghost + new Vector(-60, 0), ghost + new Vector(60, 0)], new GhostTrapOptions().SmallLoop) == (LoopVerdict.Captured, 0),
+            "one loop around both ghosts captures only one");
+
+        // Skeleton patrol: stays inside its bounds and turns around at both ends.
+        double px = 500;
+        int dir = 1, turns = 0;
+        double pause = 0;
+        for (var i = 0; i < 60 * 15; i++)
+        {
+            var before = dir;
+            (px, dir, pause) = SkeletonSiegeEncounter.PatrolStep(px, dir, pause, 1 / 60.0, 400, 700, 90, 0.28);
+            if (dir != before) turns++;
+            if (px < 400 || px > 700) { failures.Add($"skeleton left its patrol ({px:0})"); break; }
+        }
+        Check(turns >= 3, $"skeleton should turn at both ends ({turns} turns in 15 s)");
+
+        // Zombie Invasion rules and threat.
+        var wave = new ZombieInvasionOptions().TotalZombies;
+        Check(wave == 8, $"default roster is 8 zombies ({wave})");
+        Check(ZombieInvasionEncounter.Judge(wave, wave, 0, 1, 5) == EncounterResult.Victory, "all zombies dealt with, brain alive: victory");
+        Check(ZombieInvasionEncounter.Judge(wave, wave, 0, 0, 5) == EncounterResult.Failure, "brain destroyed: failure");
+        Check(ZombieInvasionEncounter.Judge(6, wave, 2, 2, 0) == EncounterResult.Failure, "timer out with zombies left: failure");
+        Check(ZombieInvasionEncounter.Judge(5, wave, 0, 2, 5) == null, "wave still spawning: keep playing");
+        Check(ZombieInvasionEncounter.ThreatFor(1.0) >= 70 && ZombieInvasionEncounter.ThreatFor(8) < 30, "threat: near is critical, far is safe");
+        Check(ZombieInvasionEncounter.CombinedThreat([1.0, 7, 8]) > ZombieInvasionEncounter.CombinedThreat([7, 8]), "killing the closest zombie lowers the threat");
 
         // Exactly-once resolution and completion.
         var completions = 0;
@@ -91,7 +115,7 @@ static class SelfCheck
         // Every asset the games ask for exists and loads.
         var assets = new SpriteAssetLoader();
         foreach (var id in new[] { "skeleton", "cat", "catapult", "projectile", "bone", "broom", "portal", "cauldron", "slime",
-                     "ghost", "pen", "ghostface", "zombie", "brute", "brain", "blaster", "bonehand", "handprint" })
+                     "ghost", "pen", "ghostface", "zombie", "brute", "runner", "brain", "blaster", "bonehand", "handprint" })
         {
             try { assets.Get(id); }
             catch (Exception ex) { failures.Add($"asset {id}: {ex.Message}"); }

@@ -22,7 +22,12 @@ public sealed class EncounterContext
     public ParticleSystem Particles { get; }
     public double Duration { get; }
 
+    /// <summary>Seconds since the timer started (see <see cref="TimerHold"/>).</summary>
     public double Elapsed { get; internal set; }
+    /// <summary>Seconds after the encounter starts before its timer begins (e.g. an arrival animation).</summary>
+    public double TimerHold { get; set; }
+    /// <summary>Secondary HUD line, e.g. "3 SHOTS LEFT". The controller shows it under the title.</summary>
+    public string Status { get; set; } = "";
     public double TimeRemaining => Math.Max(0, Duration - Elapsed);
 
     public EncounterResult? Outcome { get; private set; }
@@ -112,6 +117,28 @@ public sealed class EncounterContext
         Canvas.SetTop(box, y - box.DesiredSize.Height / 2);
         Effects.Children.Add(box);
         After(seconds, () => Animate(0.4, k => box.Opacity = 1 - k, () => Effects.Children.Remove(box)));
+    }
+
+    /// <summary>Small text that pops up at a point, drifts upward and fades (e.g. "MISS!").</summary>
+    public void Popup(string text, Point at, Color color, double size = 26)
+    {
+        var label = new TextBlock
+        {
+            Text = text,
+            FontSize = size,
+            FontWeight = FontWeights.Black,
+            Foreground = new SolidColorBrush(color),
+            IsHitTestVisible = false,
+        };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, at.X - label.DesiredSize.Width / 2);
+        Canvas.SetTop(label, at.Y - label.DesiredSize.Height / 2);
+        Effects.Children.Add(label);
+        Animate(0.9, k =>
+        {
+            Canvas.SetTop(label, at.Y - label.DesiredSize.Height / 2 - 50 * Ease.OutCubic(k));
+            label.Opacity = k < 0.6 ? 1 : (1 - k) / 0.4;
+        }, () => Effects.Children.Remove(label));
     }
 
     /// <summary>Run <paramref name="step"/> with t from 0 to 1 over <paramref name="seconds"/>, then <paramref name="done"/>.</summary>

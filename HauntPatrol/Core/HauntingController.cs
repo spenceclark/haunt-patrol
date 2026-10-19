@@ -59,7 +59,7 @@ public sealed class HauntingController
     EncounterKind _kind;
     MonitorInfo? _monitor;
     IPenaltyEffect? _penalty;
-    TextBlock? _hudTime;
+    TextBlock? _hudTime, _hudStatus;
     Rectangle? _hudBar;
 
     double Now => _clock.Elapsed.TotalSeconds;
@@ -256,6 +256,7 @@ public sealed class HauntingController
         _ctx = null;
         _penalty = null;
         _hudTime = null;
+        _hudStatus = null;
         _hudBar = null;
     }
 
@@ -299,7 +300,7 @@ public sealed class HauntingController
 
         if (_ctx is { } ctx && _encounter is { } encounter)
         {
-            ctx.Elapsed = now - _phaseStart;
+            ctx.Elapsed = Math.Max(0, now - _phaseStart - ctx.TimerHold);
             encounter.Update(dt);
             if (_ctx != ctx) return; // completed inside Update
             ctx.Update(dt);
@@ -365,6 +366,14 @@ public sealed class HauntingController
             FontWeight = FontWeights.Bold,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
+        _hudStatus = new TextBlock
+        {
+            Foreground = Brushes.White,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visibility = Visibility.Collapsed,
+        };
         _hudTime = new TextBlock
         {
             Foreground = new SolidColorBrush(Color.FromRgb(255, 214, 120)),
@@ -381,7 +390,7 @@ public sealed class HauntingController
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(14),
             Padding = new Thickness(16, 10, 16, 12),
-            Child = new StackPanel { Children = { titleText, _hudTime, track } },
+            Child = new StackPanel { Children = { titleText, _hudStatus, _hudTime, track } },
         };
         Canvas.SetLeft(hud, (width - HudWidth - 36) / 2);
         Canvas.SetTop(hud, 20);
@@ -390,7 +399,12 @@ public sealed class HauntingController
 
     void UpdateHud(EncounterContext ctx)
     {
-        if (_hudTime == null || _hudBar == null) return;
+        if (_hudTime == null || _hudBar == null || _hudStatus == null) return;
+        if (_hudStatus.Text != ctx.Status)
+        {
+            _hudStatus.Text = ctx.Status;
+            _hudStatus.Visibility = ctx.Status.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
         if (ctx.Outcome is { } outcome)
         {
             _hudTime.Text = outcome == EncounterResult.Victory ? "BANISHED!" : "TOO SLOW!";

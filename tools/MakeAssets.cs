@@ -285,6 +285,7 @@ foreach (var (id, w, h, skin, shirt, brute) in new[]
 {
     ("Zombie", 70, 100, Color.FromArgb(255, 130, 200, 110), Color.FromArgb(255, 150, 90, 60), false),
     ("Brute", 100, 130, Color.FromArgb(255, 95, 140, 80), Color.FromArgb(255, 90, 40, 40), true),
+    ("Runner", 62, 92, Color.FromArgb(255, 200, 220, 120), Color.FromArgb(255, 240, 120, 20), false), // pale, skinny, hi-vis orange
 })
 {
     Png($"Characters/{id}/walk.png", w, h, 2, (g, f) => ZombieBody(g, w, h, skin, shirt, f, "walk", brute));
@@ -405,5 +406,9 @@ Wav("zap", 0.18, t => (Sine(1800 - 7000 * t, t) + Noise() * 0.3) * Decay(t, 14))
 Wav("groan", 0.9, t => (Sine(95 + 15 * Sine(4, t), t) + 0.4 * Sine(190 + 30 * Sine(4, t), t)) * Math.Sin(Math.PI * t / 0.9) * 0.8);
 Wav("slap", 0.16, t => Noise() * Decay(t, 30) + Sine(140, t) * Decay(t, 25) * 0.6);
 Wav("fog", 1.2, t => (Noise() * (0.25 + 0.15 * Sine(0.8, t)) + Sine(110, t) * 0.25) * Math.Sin(Math.PI * t / 1.2));
+// Added later: kept after the others so earlier sounds' noise stays identical.
+Wav("screech", 0.5, t => (Sine(900 + 500 * Sine(9, t), t) * 0.6 + Noise() * 0.4) * Math.Sin(Math.PI * t / 0.5));
+Wav("thud", 0.22, t => (Sine(70 + 60 * Decay(t, 20), t) + Noise() * Decay(t, 40) * 0.4) * Decay(t, 12));
+Wav("warning", 0.3, t => Sine(t < 0.15 ? 880 : 660, t) * Decay(t % 0.15, 8) * 0.8);
 
 Console.WriteLine($"Assets written to {root}");
