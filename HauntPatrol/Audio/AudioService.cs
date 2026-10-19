@@ -4,11 +4,28 @@ using HauntPatrol.Rendering;
 
 namespace HauntPatrol.Audio;
 
-/// <summary>Fire-and-forget WAVs from Assets/Audio. MediaPlayer (not SoundPlayer) so sounds can overlap.</summary>
+/// <summary>
+/// WAVs from Assets/Audio, one MediaPlayer per sound, opened once at startup. Opening a MediaPlayer
+/// spins up Media Foundation on the UI thread and stalled the frame loop for 100-500 ms per sound,
+/// so Play() only rewinds and starts an already-open player. Different sounds overlap; replaying the
+/// same sound restarts it.
+/// </summary>
 public sealed class AudioService
 {
-    readonly List<MediaPlayer> _playing = [];
+    readonly Dictionary<string, MediaPlayer> _players = new(StringComparer.OrdinalIgnoreCase);
     bool _enabled = true;
+
+    public AudioService()
+    {
+        var dir = Path.Combine(SpriteAssetLoader.Root, "Audio");
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.EnumerateFiles(dir, "*.wav"))
+        {
+            var player = new MediaPlayer();
+            player.Open(new Uri(file));
+            _players[Path.GetFileNameWithoutExtension(file)] = player;
+        }
+    }
 
     public bool Enabled
     {
@@ -22,30 +39,13 @@ public sealed class AudioService
 
     public void Play(string name)
     {
-        if (!_enabled) return;
-        var path = Path.Combine(SpriteAssetLoader.Root, "Audio", name + ".wav");
-        if (!File.Exists(path)) return; // missing sounds are fine during development
-
-        var player = new MediaPlayer();
-        void Done()
-        {
-            player.Close();
-            _playing.Remove(player);
-        }
-        player.MediaEnded += (_, _) => Done();
-        player.MediaFailed += (_, _) => Done();
-        player.Open(new Uri(path));
+        if (!_enabled || !_players.TryGetValue(name, out var player)) return; // missing sounds are fine during development
+        player.Position = TimeSpan.Zero;
         player.Play();
-        _playing.Add(player);
     }
 
     public void StopAll()
     {
-        foreach (var p in _playing)
-        {
-            p.Stop();
-            p.Close();
-        }
-        _playing.Clear();
+        foreach (var p in _players.Values) p.Stop();
     }
 }

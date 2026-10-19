@@ -26,8 +26,6 @@ public enum PenaltyKind { Glass, Slime }
 /// </summary>
 public sealed class HauntingController
 {
-    // ponytail: fixed tick; raise to 33 ms if layered-window redraws cost too much on 4K / 3+ monitors.
-    const double FrameMs = 16;
     const double ResolveGrace = 1;  // seconds past the timer before an unresolved encounter is failed
     const double CompleteGrace = 6; // seconds past the timer before a stuck outro is force-completed
     const double HudWidth = 340;
@@ -46,12 +44,15 @@ public sealed class HauntingController
     readonly OverlayManager _overlays;
     readonly SpriteAssetLoader _assets = new();
     readonly DispatcherTimer _schedule = new();
-    readonly DispatcherTimer _frame = new(DispatcherPriority.Render);
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly Random _random = new();
     readonly string _logPath = System.IO.Path.Combine(AppContext.BaseDirectory, "haunt.log");
 
     double _lastTick, _phaseStart;
+    bool _framesRunning;
+    TimeSpan _lastRenderingTime;
+    int _frames, _longFrames;
+    double _worstFrame;
     bool _demoSkeletonNext = true;
     IEncounter? _encounter;
     EncounterContext? _ctx;
@@ -66,8 +67,6 @@ public sealed class HauntingController
     public HauntingController()
     {
         _overlays = new OverlayManager(Write);
-        _frame.Interval = TimeSpan.FromMilliseconds(FrameMs);
-        _frame.Tick += (_, _) => Guard(Tick);
         _schedule.Tick += (_, _) => Guard(OnScheduleTick);
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
     }
@@ -212,7 +211,10 @@ public sealed class HauntingController
     /// <summary>Close every overlay and release every resource. Safe to call at any time, any number of times.</summary>
     void Cleanup(bool silence)
     {
-        _frame.Stop();
+        StopFrames();
+        if (_frames > 0)
+            Write($"frames: {_frames} in {Now - _phaseStart:0.0}s ({_frames / (Now - _phaseStart):0} fps), {_longFrames} over 25 ms, worst {_worstFrame * 1000:0} ms");
+        _frames = 0;
         Try(() => _encounter?.End());
         Try(() => _penalty?.Stop());
         Try(() => Mouse.Capture(null));
@@ -228,14 +230,40 @@ public sealed class HauntingController
     void StartPhase()
     {
         _phaseStart = _lastTick = Now;
-        _frame.Start();
+        _frames = _longFrames = 0;
+        _worstFrame = 0;
+        if (_framesRunning) return;
+        CompositionTarget.Rendering += OnRendering;
+        _framesRunning = true;
+    }
+
+    void StopFrames()
+    {
+        if (!_framesRunning) return;
+        CompositionTarget.Rendering -= OnRendering;
+        _framesRunning = false;
+    }
+
+    // Tick once per WPF frame, in step with rendering. (A 16 ms DispatcherTimer snaps to the
+    // 15.6 ms system timer, giving an uneven ~32 fps that changes when other apps alter timer resolution.)
+    void OnRendering(object? sender, EventArgs e)
+    {
+        var time = ((RenderingEventArgs)e).RenderingTime;
+        if (time == _lastRenderingTime) return; // Rendering can fire more than once per frame
+        _lastRenderingTime = time;
+        Guard(Tick);
     }
 
     void Tick()
     {
         var now = Now;
-        var dt = Math.Min(now - _lastTick, 0.1);
+        var interval = now - _lastTick;
+        var dt = Math.Min(interval, 0.1);
         _lastTick = now;
+        _frames++;
+        if (interval > 0.025) _longFrames++;
+        if (interval > 0.1) Write($"slow frame {interval * 1000:0} ms at +{now - _phaseStart:0.00}s");
+        _worstFrame = Math.Max(_worstFrame, interval);
 
         if (_ctx is { } ctx && _encounter is { } encounter)
         {
