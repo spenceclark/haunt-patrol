@@ -48,3 +48,5 @@ Thumbs.db
 !.env.example
 
 
+# Raw screen recordings (too big for GitHub); commit the compressed demo instead
+Demo/Recording*.mp4
