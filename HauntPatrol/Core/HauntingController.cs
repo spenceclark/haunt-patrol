@@ -17,8 +17,8 @@ using Microsoft.Win32;
 namespace HauntPatrol.Core;
 
 public enum HauntState { Stopped, Idle, EncounterStarting, EncounterActive, EncounterEnding, PenaltyActive }
-public enum EncounterKind { Skeleton, Cat }
-public enum PenaltyKind { Glass, Slime }
+public enum EncounterKind { Skeleton, Cat, Ghost, Zombie }
+public enum PenaltyKind { Glass, Slime, Fog, Infection }
 
 /// <summary>
 /// Owns the state machine, the scheduler, the frame loop and every overlay. Runs entirely on the UI
@@ -53,7 +53,7 @@ public sealed class HauntingController
     TimeSpan _lastRenderingTime;
     int _frames, _longFrames;
     double _worstFrame;
-    bool _demoSkeletonNext = true;
+    int _demoNext;
     IEncounter? _encounter;
     EncounterContext? _ctx;
     EncounterKind _kind;
@@ -119,6 +119,10 @@ public sealed class HauntingController
             case "cat": StartEncounter(EncounterKind.Cat); break;
             case "glass": StartPenalty(PenaltyKind.Glass); break;
             case "slime": StartPenalty(PenaltyKind.Slime); break;
+            case "ghost": StartEncounter(EncounterKind.Ghost); break;
+            case "zombie": StartEncounter(EncounterKind.Zombie); break;
+            case "fog": StartPenalty(PenaltyKind.Fog); break;
+            case "infection": StartPenalty(PenaltyKind.Infection); break;
             default: Write($"unknown trigger '{what}'"); break;
         }
     }
@@ -136,7 +140,13 @@ public sealed class HauntingController
         var effects = _overlays.Open(_monitor, passive: true); // opened second, so it sits above the stage
 
         _kind = kind;
-        IEncounter encounter = kind == EncounterKind.Skeleton ? new SkeletonSiegeEncounter() : new WitchsFamiliarEncounter();
+        IEncounter encounter = kind switch
+        {
+            EncounterKind.Skeleton => new SkeletonSiegeEncounter(),
+            EncounterKind.Cat => new WitchsFamiliarEncounter(),
+            EncounterKind.Ghost => new GhostTrapEncounter(),
+            _ => new ZombieInvasionEncounter(),
+        };
         var ctx = new EncounterContext(stage.Canvas, effects.Canvas, stage.SizeInDips, _assets, Audio,
             DemoMode ? new Random(1031) : new Random(), DemoMode, encounter.Duration, () => Guard(OnEncounterComplete));
         _encounter = encounter;
@@ -144,7 +154,7 @@ public sealed class HauntingController
 
         stage.PointerDown += p => Guard(() => { if (ctx.Outcome == null) encounter.OnPointerDown(p); });
         stage.PointerMove += p => Guard(() => { if (ctx.Outcome == null) encounter.OnPointerMove(p); });
-        stage.PointerUp += p => Guard(() => { if (!ctx.IsComplete) encounter.OnPointerUp(p); });
+        stage.PointerUp += p => Guard(() => { if (ctx.Outcome == null) encounter.OnPointerUp(p); }); // Resolve() ends drags; that Up must not re-enter
 
         BuildHud(effects.Canvas, ctx.Width, encounter.Title);
         encounter.Initialize(ctx);
@@ -153,6 +163,15 @@ public sealed class HauntingController
         StartPhase();
         SetState(HauntState.EncounterActive);
         Write($"{encounter.Title} started on monitor #{_monitor.Index} ({encounter.Duration:0}s, {ctx.Width:0}x{ctx.Height:0} DIP)");
+    });
+
+    /// <summary>Diagnostics: end the running encounter now with the given outcome (skips its outro).</summary>
+    public void ForceOutcome(EncounterResult result) => Guard(() =>
+    {
+        if (_ctx is not { } ctx) { Write($"force {result} ignored: no encounter running"); return; }
+        Write($"forcing {result}");
+        ctx.Resolve(result);
+        ctx.Complete();
     });
 
     public void StartPenalty(PenaltyKind kind) => Guard(() =>
@@ -175,7 +194,13 @@ public sealed class HauntingController
         Cleanup(silence: false);
 
         if (result == EncounterResult.Failure)
-            BeginPenalty(_kind == EncounterKind.Skeleton ? PenaltyKind.Glass : PenaltyKind.Slime, monitor, impact);
+            BeginPenalty(_kind switch
+            {
+                EncounterKind.Skeleton => PenaltyKind.Glass,
+                EncounterKind.Cat => PenaltyKind.Slime,
+                EncounterKind.Ghost => PenaltyKind.Fog,
+                _ => PenaltyKind.Infection,
+            }, monitor, impact);
         else
             Finish();
     }
@@ -195,7 +220,13 @@ public sealed class HauntingController
             return new PenaltySurface(w.Canvas, size, at);
         }).ToList();
 
-        _penalty = kind == PenaltyKind.Glass ? new GlassEffect(surfaces, Audio, rng) : new SlimeEffect(surfaces, Audio, _assets, rng);
+        _penalty = kind switch
+        {
+            PenaltyKind.Glass => new GlassEffect(surfaces, Audio, rng),
+            PenaltyKind.Slime => new SlimeEffect(surfaces, Audio, _assets, rng),
+            PenaltyKind.Fog => new SpectralFogEffect(surfaces, Audio, _assets, rng),
+            _ => new ZombieInfectionEffect(surfaces, Audio, _assets, rng),
+        };
         _penalty.Start();
         StartPhase();
         Write($"{kind} penalty on {surfaces.Count} monitor(s) for {_penalty.Duration:0}s (click-through)");
@@ -311,9 +342,8 @@ public sealed class HauntingController
     {
         _schedule.Stop();
         if (!AutoEnabled || Busy) return; // Finish() reschedules after the current event
-        var skeleton = DemoMode ? _demoSkeletonNext : _random.Next(2) == 0;
-        _demoSkeletonNext = !skeleton;
-        StartEncounter(skeleton ? EncounterKind.Skeleton : EncounterKind.Cat);
+        var kinds = Enum.GetValues<EncounterKind>();
+        StartEncounter(DemoMode ? kinds[_demoNext++ % kinds.Length] : kinds[_random.Next(kinds.Length)]);
     }
 
     void OnDisplaySettingsChanged(object? sender, EventArgs e) =>

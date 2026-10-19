@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using HauntPatrol.Audio;
 using HauntPatrol.Rendering;
 
@@ -62,6 +64,7 @@ public sealed class EncounterContext
     {
         if (Outcome != null) return false;
         Outcome = result;
+        Mouse.Capture(null); // the game is decided: end any drag so desktop input is normal again
         return true;
     }
 
@@ -82,6 +85,31 @@ public sealed class EncounterContext
         _sprites.Add(sprite);
         sprite.Update(0);
         return sprite;
+    }
+
+    /// <summary>Big centred caption on the click-through layer that fades out after <paramref name="seconds"/>.</summary>
+    public void Banner(string text, double y, double seconds, Color color)
+    {
+        var label = new TextBlock
+        {
+            Text = text,
+            FontSize = 34,
+            FontWeight = FontWeights.Black,
+            Foreground = new SolidColorBrush(color),
+        };
+        var box = new Border
+        {
+            Child = label,
+            Padding = new Thickness(22, 8, 22, 10),
+            CornerRadius = new CornerRadius(14),
+            Background = new SolidColorBrush(Color.FromArgb(170, 20, 10, 30)),
+            IsHitTestVisible = false,
+        };
+        box.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(box, (Width - box.DesiredSize.Width) / 2);
+        Canvas.SetTop(box, y - box.DesiredSize.Height / 2);
+        Effects.Children.Add(box);
+        After(seconds, () => Animate(0.4, k => box.Opacity = 1 - k, () => Effects.Children.Remove(box)));
     }
 
     /// <summary>Run <paramref name="step"/> with t from 0 to 1 over <paramref name="seconds"/>, then <paramref name="done"/>.</summary>

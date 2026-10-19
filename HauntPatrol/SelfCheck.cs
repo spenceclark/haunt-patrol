@@ -45,6 +45,26 @@ static class SelfCheck
         Check(cat.X > 560, $"cat should flee the broom (x={cat.X:0})");
         Check(vel.Length <= WitchsFamiliarEncounter.MaxSpeed + 1e-6, "cat speed should be capped");
 
+        // Ghost Trap loop validation: rough circle around the ghost succeeds; open, missed and tiny loops don't.
+        List<Point> Circle(Point c, double r, double sweep) =>
+            Enumerable.Range(0, 60).Select(i => c + new Vector(Math.Cos(i / 59.0 * sweep), Math.Sin(i / 59.0 * sweep)) * r).ToList();
+        double Length(List<Point> pts) => pts.Zip(pts.Skip(1), (a, b) => (b - a).Length).Sum();
+        var ghost = new Point(600, 400);
+        var loop = Circle(ghost, 120, 2 * Math.PI);
+        Check(LoopCheck.Evaluate(loop, Length(loop), ghost) == LoopVerdict.Captured, "closed loop around the ghost captures it");
+        var arc = Circle(ghost, 120, 1.5 * Math.PI);
+        Check(LoopCheck.Evaluate(arc, Length(arc), ghost) == LoopVerdict.Open, "three-quarter arc is an open loop");
+        var elsewhere = Circle(new Point(1200, 400), 120, 2 * Math.PI);
+        Check(LoopCheck.Evaluate(elsewhere, Length(elsewhere), ghost) == LoopVerdict.Missed, "closed loop elsewhere misses");
+        var tiny = Circle(ghost, 20, 2 * Math.PI);
+        Check(LoopCheck.Evaluate(tiny, Length(tiny), ghost) == LoopVerdict.TooSmall, "tiny scribble is ignored");
+
+        // Zombie Invasion rules.
+        Check(ZombieInvasionEncounter.Judge(8, 0, 1, 5) == EncounterResult.Victory, "all zombies dealt with, brain alive: victory");
+        Check(ZombieInvasionEncounter.Judge(8, 0, 0, 5) == EncounterResult.Failure, "brain destroyed: failure");
+        Check(ZombieInvasionEncounter.Judge(6, 2, 2, 0) == EncounterResult.Failure, "timer out with zombies left: failure");
+        Check(ZombieInvasionEncounter.Judge(5, 0, 2, 5) == null, "wave still spawning: keep playing");
+
         // Exactly-once resolution and completion.
         var completions = 0;
         var ctx = new EncounterContext(new Canvas(), new Canvas(), new Size(800, 600), new SpriteAssetLoader(), new AudioService(),
@@ -57,11 +77,17 @@ static class SelfCheck
 
         // Every asset the games ask for exists and loads.
         var assets = new SpriteAssetLoader();
-        foreach (var id in new[] { "skeleton", "cat", "catapult", "projectile", "bone", "broom", "portal", "cauldron", "slime" })
+        foreach (var id in new[] { "skeleton", "cat", "catapult", "projectile", "bone", "broom", "portal", "cauldron", "slime",
+                     "ghost", "pen", "ghostface", "zombie", "brute", "brain", "blaster", "bonehand", "handprint" })
         {
             try { assets.Get(id); }
             catch (Exception ex) { failures.Add($"asset {id}: {ex.Message}"); }
         }
+
+        // Every sound parses as PCM for waveOut.
+        var audioDir = System.IO.Path.Combine(SpriteAssetLoader.Root, "Audio");
+        foreach (var wav in System.IO.Directory.EnumerateFiles(audioDir, "*.wav"))
+            Check(Wave.Parse(System.IO.File.ReadAllBytes(wav)) is { Item2.Length: > 0 }, $"sound {System.IO.Path.GetFileName(wav)} parses as PCM");
 
         // WinExe has no console; leave the verdict next to the exe.
         System.IO.File.WriteAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "selftest.log"),

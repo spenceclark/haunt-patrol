@@ -55,5 +55,11 @@ public partial class MainWindow : Window
     void OnTriggerCat(object sender, RoutedEventArgs e) => Controller.StartEncounter(EncounterKind.Cat);
     void OnTriggerGlass(object sender, RoutedEventArgs e) => Controller.StartPenalty(PenaltyKind.Glass);
     void OnTriggerSlime(object sender, RoutedEventArgs e) => Controller.StartPenalty(PenaltyKind.Slime);
+    void OnTriggerGhost(object sender, RoutedEventArgs e) => Controller.StartEncounter(EncounterKind.Ghost);
+    void OnTriggerZombie(object sender, RoutedEventArgs e) => Controller.StartEncounter(EncounterKind.Zombie);
+    void OnTriggerFog(object sender, RoutedEventArgs e) => Controller.StartPenalty(PenaltyKind.Fog);
+    void OnTriggerInfection(object sender, RoutedEventArgs e) => Controller.StartPenalty(PenaltyKind.Infection);
+    void OnForceWin(object sender, RoutedEventArgs e) => Controller.ForceOutcome(EncounterResult.Victory);
+    void OnForceFail(object sender, RoutedEventArgs e) => Controller.ForceOutcome(EncounterResult.Failure);
     void OnExit(object sender, RoutedEventArgs e) => Close();
 }

@@ -14,6 +14,8 @@ system is changed.
 |---|---|---|
 | **Skeleton Siege** (20 s) | Grab the catapult's projectile, drag back to aim (a partial arc is previewed), release to fire. Hit the skeleton. | It throws a bone at the screen and the glass cracks. |
 | **Witch's Familiar** (25 s) | Drag the broom near the cat to make it run away, and herd it into the portal. | The cat knocks over the cauldron and slime gets all over the screen. |
+| **Ghost Trap** (20 s) | Pick up the magic pen and draw a closed loop around the floating ghost. Open or missed loops fade, and you can try again. | The ghost escapes laughing and spectral fog rolls in, with faces and glowing eyes. |
+| **Zombie Invasion** (25 s) | Click zombies to zap them before they reach the brain. Brutes take two hits. The brain survives one bite. | Zombie handprints slap onto the screen and green mould spreads in from the edges. |
 
 ## Build and run
 
@@ -33,7 +35,8 @@ HauntPatrol.exe --demo --trigger skeleton
 ```
 
 - `--demo` makes positions and timing deterministic.
-- `--trigger skeleton|cat|glass|slime` starts that event immediately.
+- `--trigger skeleton|cat|ghost|zombie|glass|slime|fog|infection` starts that event immediately.
+- `--start`, `--interval <seconds>`, `--all` turn on automatic hauntings, set the average interval, and use all monitors.
 - `--selftest` runs the game-rule checks (physics, steering, exactly-once resolution, assets) without
   showing any windows. It exits with code 0 if they pass and writes `selftest.log` next to the exe.
 
@@ -43,7 +46,8 @@ the actual rectangle of each overlay window and the foreground window before and
 ## Controls
 
 - **Start / Stop Haunting**: turns automatic encounters on or off. Stop also removes every overlay immediately.
-- **Trigger Skeleton / Cat / Glass / Slime**: start an event straight away. Ignored if another event is already running.
+- **Trigger …**: start any of the four encounters or four penalties straight away. Ignored if another event is already running.
+- **Force Win / Force Fail**: end the running encounter immediately with that outcome. Force Fail is followed by the encounter's penalty.
 - **Primary only / All monitors**: in All monitors mode, encounters pick a random monitor and penalties cover every monitor.
 - **Encounter interval**: the average wait between automatic encounters. The actual wait is between 0.5× and 1.5× this value (exactly 1× in demo mode).
 - **Sound enabled**, **Demo mode**, **Exit**.
@@ -65,7 +69,9 @@ To use production art, replace the files in place.
   idle clip plays instead.
 - **Props and effects** (`Assets/Props/*.png`, `Assets/Effects/*.png`) are single images. Their logical size
   is their pixel size and their pivot is the centre.
-- **Sounds** (`Assets/Audio/*.wav`): encounter, pickup, launch, impact, hiss, success, failure, glass, slime.
+- **Sounds** (`Assets/Audio/*.wav`, uncompressed PCM): encounter, pickup, launch, impact, hiss, success, failure, glass,
+  slime, laugh, zap, groan, slap, fog. Sounds play through `waveOut` on a worker thread, preloaded, so several can
+  overlap. WPF's `MediaPlayer` was dropped because it stalled rendering by 100–500 ms per sound.
 
 ## How it works
 
@@ -95,8 +101,8 @@ HauntPatrol/
   Platform/    Win32 interop, monitor enumeration
   Overlays/    overlay window and manager
   Rendering/   sprite asset loader, sprite + animation player, particles
-  Encounters/  SkeletonSiege, WitchsFamiliar
-  Effects/     glass and slime penalties
+  Encounters/  SkeletonSiege, WitchsFamiliar, GhostTrap, ZombieInvasion
+  Effects/     glass, slime, spectral fog and zombie infection penalties
   Audio/       WAV playback
 tools/MakeAssets.cs   placeholder art and sound generator
 ```

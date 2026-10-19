@@ -183,6 +183,187 @@ Png("Effects/slime.png", 260, 200, 1, (g, _) =>
     g.FillEllipse(new SolidBrush(Color.FromArgb(150, 200, 255, 140)), 95, 65, 40, 22);
 });
 
+// ---------------------------------------------------------------- mini-games 3 & 4
+
+// Ghost: semi-transparent blue sheet with eyes, 120x140, faces right, pivot at the centre.
+void Ghost(Graphics g, int frame, string mood)
+{
+    var body = new SolidBrush(Color.FromArgb(190, 170, 205, 255));
+    using var path = new GraphicsPath();
+    path.AddArc(10, 4, 100, 100, 180, 180);
+    var hem = frame == 0 ? 0 : 6;
+    path.AddLine(110, 54, 110, 120);
+    for (var x = 110; x > 10; x -= 25)
+        path.AddBezier(x, 120 + (x / 25 % 2 == 0 ? hem : -hem), x - 8, 138, x - 17, 138, x - 25, 120);
+    path.CloseFigure();
+    g.FillPath(body, path);
+    g.DrawPath(P(Color.FromArgb(220, 120, 150, 230), 3), path);
+    var eye = Brushes.MidnightBlue;
+    switch (mood)
+    {
+        case "laugh":
+            g.DrawArc(P(Color.MidnightBlue, 4), 38, 40, 18, 12, 180, 180);
+            g.DrawArc(P(Color.MidnightBlue, 4), 68, 40, 18, 12, 180, 180);
+            g.FillPie(eye, 44, 58, 40, 30, 0, 180);
+            break;
+        case "scared":
+            g.FillEllipse(Brushes.White, 34, 34, 24, 28);
+            g.FillEllipse(Brushes.White, 66, 34, 24, 28);
+            g.FillEllipse(eye, 42, 44, 9, 10);
+            g.FillEllipse(eye, 74, 44, 9, 10);
+            g.DrawBezier(P(Color.MidnightBlue, 3), 46, 80, 54, 72, 62, 88, 78, 78);
+            break;
+        default:
+            g.FillEllipse(eye, 40, 38, 16, 20);
+            g.FillEllipse(eye, 70, 38, 16, 20);
+            g.FillEllipse(eye, 56, 70, 14, 10);
+            break;
+    }
+}
+
+Png("Characters/Ghost/idle.png", 120, 140, 2, (g, f) => Ghost(g, f, "idle"));
+Png("Characters/Ghost/laugh.png", 120, 140, 2, (g, f) => Ghost(g, f, "laugh"));
+Png("Characters/Ghost/scared.png", 120, 140, 2, (g, f) => Ghost(g, f, "scared"));
+Json("Characters/Ghost/animations.json", """
+{
+  "id": "ghost",
+  "width": 120, "height": 140,
+  "pivotX": 60, "pivotY": 70,
+  "animations": {
+    "idle":   { "source": "idle.png",   "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 3, "loop": true },
+    "laugh":  { "source": "laugh.png",  "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 6, "loop": false },
+    "scared": { "source": "scared.png", "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 8, "loop": true }
+  }
+}
+""");
+
+Png("Props/pen.png", 28, 110, 1, (g, _) =>
+{
+    var shape = new PointF[] { new(8, 4), new(20, 4), new(20, 84), new(14, 100), new(8, 84) };
+    g.FillEllipse(new SolidBrush(Color.FromArgb(90, 120, 240, 255)), 0, 82, 28, 28);
+    g.FillPolygon(new SolidBrush(Color.FromArgb(255, 70, 30, 110)), shape);
+    g.FillRectangle(Brushes.Gold, 8, 18, 12, 6);
+    g.FillEllipse(new SolidBrush(Color.FromArgb(255, 200, 250, 255)), 10, 92, 8, 10);
+    g.DrawPolygon(P(Color.FromArgb(255, 170, 120, 255), 2), shape);
+});
+
+Png("Effects/ghostface.png", 160, 180, 1, (g, _) =>
+{
+    var hole = new SolidBrush(Color.FromArgb(220, 20, 20, 50));
+    g.FillEllipse(new SolidBrush(Color.FromArgb(150, 225, 235, 255)), 10, 10, 140, 160);
+    g.FillEllipse(hole, 40, 55, 28, 38);
+    g.FillEllipse(hole, 92, 55, 28, 38);
+    g.FillEllipse(hole, 62, 112, 36, 44);
+});
+
+// Zombies face right; pivot at the feet. Brutes are bigger, darker, with a helmet.
+void ZombieBody(Graphics g, float w, float h, Color skin, Color shirt, int frame, string pose, bool brute)
+{
+    if (pose == "die")
+    {
+        var lay = frame == 0 ? 0.6f : 0.3f;
+        g.FillEllipse(new SolidBrush(Color.FromArgb(200, shirt)), w * 0.1f, h * (1 - lay * 0.5f), w * 0.8f, h * lay * 0.5f);
+        g.FillEllipse(new SolidBrush(Color.FromArgb(200, skin)), w * 0.6f, h * (1 - lay * 0.6f), w * 0.35f, w * 0.3f);
+        return;
+    }
+    var tint = pose == "hit" ? Color.FromArgb(255, 235, 255, 220) : skin;
+    var legSwing = frame == 0 ? -6 : 6;
+    var pants = new SolidBrush(Color.FromArgb(255, 60, 50, 90));
+    g.FillRectangle(pants, w * 0.3f + legSwing, h * 0.72f, w * 0.15f, h * 0.28f);
+    g.FillRectangle(pants, w * 0.55f - legSwing, h * 0.72f, w * 0.15f, h * 0.28f);
+    g.FillRectangle(new SolidBrush(shirt), w * 0.22f, h * 0.38f, w * 0.56f, h * 0.38f);
+    g.DrawLine(P(tint, w * 0.12f), w * 0.6f, h * 0.45f, w * 0.98f, h * (0.45f + (frame == 0 ? 0 : 0.04f)));
+    g.FillEllipse(new SolidBrush(tint), w * 0.25f, h * 0.05f, w * 0.55f, h * 0.36f);
+    g.FillEllipse(Brushes.Yellow, w * 0.55f, h * 0.16f, w * 0.1f, w * 0.1f);
+    g.FillEllipse(Brushes.Black, w * 0.58f, h * 0.18f, w * 0.05f, w * 0.05f);
+    g.DrawLine(P(Color.FromArgb(255, 60, 20, 20), 2), w * 0.5f, h * 0.31f, w * 0.72f, h * 0.29f);
+    if (brute) g.FillPie(Brushes.DimGray, w * 0.22f, 0, w * 0.6f, h * 0.24f, 180, 180);
+    g.DrawRectangle(outline, w * 0.22f, h * 0.38f, w * 0.56f, h * 0.38f);
+}
+
+foreach (var (id, w, h, skin, shirt, brute) in new[]
+{
+    ("Zombie", 70, 100, Color.FromArgb(255, 130, 200, 110), Color.FromArgb(255, 150, 90, 60), false),
+    ("Brute", 100, 130, Color.FromArgb(255, 95, 140, 80), Color.FromArgb(255, 90, 40, 40), true),
+})
+{
+    Png($"Characters/{id}/walk.png", w, h, 2, (g, f) => ZombieBody(g, w, h, skin, shirt, f, "walk", brute));
+    Png($"Characters/{id}/hit.png", w, h, 1, (g, _) => ZombieBody(g, w, h, skin, shirt, 0, "hit", brute));
+    Png($"Characters/{id}/die.png", w, h, 2, (g, f) => ZombieBody(g, w, h, skin, shirt, f, "die", brute));
+    Json($"Characters/{id}/animations.json", $$"""
+{
+  "id": "{{id.ToLowerInvariant()}}",
+  "width": {{w}}, "height": {{h}},
+  "pivotX": {{w / 2}}, "pivotY": {{h}},
+  "animations": {
+    "idle": { "source": "walk.png", "frameWidth": {{w}}, "frameHeight": {{h}}, "frameCount": 1, "fps": 1, "loop": true },
+    "walk": { "source": "walk.png", "frameWidth": {{w}}, "frameHeight": {{h}}, "frameCount": 2, "fps": 4, "loop": true },
+    "hit":  { "source": "hit.png",  "frameWidth": {{w}}, "frameHeight": {{h}}, "frameCount": 1, "fps": 5, "loop": false },
+    "die":  { "source": "die.png",  "frameWidth": {{w}}, "frameHeight": {{h}}, "frameCount": 2, "fps": 5, "loop": false }
+  }
+}
+""");
+}
+
+// Brain: glowing pink blob, 110x90, pivot at the centre.
+void Brain(Graphics g, Color colour, bool happy)
+{
+    g.FillEllipse(new SolidBrush(Color.FromArgb(80, colour)), 0, 0, 110, 90);
+    var lobe = new SolidBrush(colour);
+    foreach (var (x, y) in new[] { (14, 18), (40, 10), (66, 14), (20, 40), (50, 36), (72, 40) })
+        g.FillEllipse(lobe, x, y, 30, 30);
+    g.DrawLine(P(Color.FromArgb(160, 150, 40, 80), 3), 55, 14, 55, 70);
+    if (!happy) return;
+    g.FillEllipse(Brushes.Black, 38, 42, 8, 10);
+    g.FillEllipse(Brushes.Black, 64, 42, 8, 10);
+    g.DrawArc(P(Color.Black, 3), 40, 48, 30, 18, 0, 180);
+}
+
+Png("Characters/Brain/idle.png", 110, 90, 1, (g, _) => Brain(g, Color.FromArgb(255, 255, 150, 190), false));
+Png("Characters/Brain/hit.png", 110, 90, 1, (g, _) => Brain(g, Color.FromArgb(255, 255, 80, 80), false));
+Png("Characters/Brain/victory.png", 110, 90, 1, (g, _) => Brain(g, Color.FromArgb(255, 255, 190, 220), true));
+Json("Characters/Brain/animations.json", """
+{
+  "id": "brain",
+  "width": 110, "height": 90,
+  "pivotX": 55, "pivotY": 45,
+  "animations": {
+    "idle":    { "source": "idle.png",    "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 1, "loop": true },
+    "hit":     { "source": "hit.png",     "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 3, "loop": false },
+    "victory": { "source": "victory.png", "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 1, "loop": true }
+  }
+}
+""");
+
+Png("Props/blaster.png", 100, 64, 1, (g, _) =>
+{
+    g.FillRectangle(Brushes.DimGray, 10, 30, 60, 30);
+    g.FillPolygon(new SolidBrush(Color.FromArgb(255, 110, 80, 160)), new PointF[] { new(40, 34), new(90, 6), new(98, 16), new(54, 46) });
+    g.FillEllipse(new SolidBrush(Color.FromArgb(255, 160, 255, 255)), 86, 2, 14, 14);
+    g.DrawRectangle(outline, 10, 30, 60, 30);
+});
+
+Png("Props/bonehand.png", 46, 70, 1, (g, _) =>
+{
+    var bone = P(Color.WhiteSmoke, 6);
+    g.FillEllipse(Brushes.WhiteSmoke, 10, 34, 26, 22);
+    g.DrawLine(bone, 23, 50, 23, 70);
+    foreach (var (x, top) in new[] { (8, 22), (16, 8), (24, 4), (32, 8), (40, 26) }) g.DrawLine(bone, x, top, (x + 23) / 2f, 42);
+});
+
+Png("Effects/handprint.png", 180, 210, 1, (g, _) =>
+{
+    var grime = new SolidBrush(Color.FromArgb(200, 70, 95, 35));
+    g.FillEllipse(grime, 30, 90, 120, 110);
+    foreach (var (x, y, len) in new[] { (36, 30, 80), (64, 8, 95), (92, 6, 98), (120, 22, 85) })
+    {
+        g.FillEllipse(grime, x, y, 28, 28);
+        g.FillRectangle(grime, x, y + 14, 28, len - 10);
+    }
+    g.FillEllipse(grime, 0, 110, 50, 34); // thumb
+    g.FillEllipse(new SolidBrush(Color.FromArgb(130, 40, 55, 20)), 60, 130, 40, 30);
+});
+
 // ---------------------------------------------------------------- sounds (22.05 kHz, 16-bit mono)
 
 const int Rate = 22050;
@@ -219,5 +400,10 @@ Wav("success", 0.7, t => Sine(new[] { 523.25, 659.25, 783.99, 1046.5 }[Math.Min(
 Wav("failure", 0.8, t => Sine(300 - 180 * t, t) * (0.5 + 0.5 * Sine(6, t)) * Decay(t, 2));
 Wav("glass", 0.9, t => (Noise() * Decay(t, 14) + Sine(3100, t) * Decay(t, 6) * 0.4 + Sine(4700, t) * Decay(Math.Max(0, t - 0.15), 7) * (t > 0.15 ? 0.3 : 0)));
 Wav("slime", 0.7, t => Sine(70 + 40 * Sine(11, t), t) * Decay(t, 3) + Noise() * Decay(t, 20) * 0.5);
+Wav("laugh", 0.9, t => Sine(380 + 120 * Sine(2.5, t), t) * Math.Max(0, Sine(6.5, t)) * Decay(t, 1.2));
+Wav("zap", 0.18, t => (Sine(1800 - 7000 * t, t) + Noise() * 0.3) * Decay(t, 14));
+Wav("groan", 0.9, t => (Sine(95 + 15 * Sine(4, t), t) + 0.4 * Sine(190 + 30 * Sine(4, t), t)) * Math.Sin(Math.PI * t / 0.9) * 0.8);
+Wav("slap", 0.16, t => Noise() * Decay(t, 30) + Sine(140, t) * Decay(t, 25) * 0.6);
+Wav("fog", 1.2, t => (Noise() * (0.25 + 0.15 * Sine(0.8, t)) + Sine(110, t) * 0.25) * Math.Sin(Math.PI * t / 1.2));
 
 Console.WriteLine($"Assets written to {root}");
