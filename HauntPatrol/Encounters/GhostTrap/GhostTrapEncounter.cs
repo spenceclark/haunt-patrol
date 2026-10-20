@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using HauntPatrol.Core;
@@ -114,17 +115,26 @@ public sealed class GhostTrapOptions
     // Stage 2: it splits.
     public int SplitGhostCount { get; init; } = 2;
     public double SmallGhostScale { get; init; } = 0.68;
-    public double SplitSeconds { get; init; } = 0.85;
+    public double SplitSeconds { get; init; } = 0.75;   // squash, flash and burst apart; no drawing meanwhile
     public double SmallSpeedMin { get; init; } = 45;
     public double SmallSpeedMax { get; init; } = 65;
-    public double AvoidanceRadius { get; init; } = 120;  // only while the pen is being dragged
+    public double AvoidanceRadius { get; init; } = 160;  // from a small ghost's centre (~80 DIP beyond its body); only while the pen is dragged
     public double AvoidanceMultiplier { get; init; } = 1.4;
     public double Separation { get; init; } = 220;      // small ghosts keep this far apart when practical
     public Size SmallRegion { get; init; } = new(1040, 600);
     public LoopRules SmallLoop { get; init; } = new(12, 250, 38);
 
+    // Presentation. The production art already floats (~3.5 DIP), so the procedural bob only adds a little.
+    public double Bob { get; init; } = 2;
+    public double SmallBob { get; init; } = 1.5;
+    public double SmallLaughSeconds { get; init; } = 0.6; // the same laugh clip, slowed to fill this
+    public double PenScale { get; init; } = 1.25;          // the pen art drawn 25% larger so it's easy to find
+
     public double SampleSpacing { get; init; } = 4;
     public double PenGrab { get; init; } = 30;
+    // Carrying the pen leaves no ink; ink switches on once the tip is within this many DIPs beyond a ghost's
+    // body (half its height from its centre) and stays on until the pen is let go.
+    public double InkReach { get; init; } = 100;
 }
 
 /// <summary>
@@ -159,7 +169,13 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
     Point _anchor;
     Rect _region;
     double _offsetX, _vx, _dir = 1, _turnIn, _time;
-    bool _drawing, _reacting;
+    bool _drawing, _reacting; // _drawing: the pen is held (carried, possibly inking)
+    bool _inking;
+    Ellipse? _nib;
+    Polyline? _head;                          // brighter leading edge of the trail
+    Ellipse _tipGlow = null!;                 // soft pulsing glow on the pen tip (click-through layer)
+    readonly GradientStop _tipColour = new(Color.FromArgb(200, 120, 240, 255), 0);
+    static readonly Color BrightCyan = Color.FromRgb(190, 255, 255);
     readonly List<Spirit> _spirits = [];
 
     readonly List<Point> _stroke = [];
@@ -173,17 +189,30 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         c.TimerHold = _o.ArrivalSeconds;
         _anchor = new Point(c.Width * (c.Demo ? 0.5 : 0.4 + r.NextDouble() * 0.2), c.Height * (c.Demo ? 0.45 : 0.4 + r.NextDouble() * 0.12));
         _turnIn = 2 + r.NextDouble() * 2;
-        var region = new Rect(_anchor.X - _o.SmallRegion.Width / 2, _anchor.Y - _o.SmallRegion.Height / 2, _o.SmallRegion.Width, _o.SmallRegion.Height);
-        region.Intersect(new Rect(90, 190, c.Width - 180, c.Height - 280)); // fully on screen, clear of the HUD
-        _region = region;
-
         // Ghosts are never clicked, so they live on the click-through layer; only the pen intercepts the mouse.
         _ghost = c.Spawn("ghost", _anchor.X, _anchor.Y, onEffectsLayer: true);
         _ghost.Opacity = 0;
         _ghost.ScaleX = _ghost.ScaleY = 0.3;
-        _pen = c.Spawn("pen", _anchor.X - 150, _anchor.Y + 30);
+
+        // Where the small ghosts may roam: around the anchor, with each small ghost fully on screen and clear of the HUD.
+        double halfW = _ghost.Width * _o.SmallGhostScale / 2, halfH = _ghost.Height * _o.SmallGhostScale / 2;
+        var region = new Rect(_anchor.X - _o.SmallRegion.Width / 2, _anchor.Y - _o.SmallRegion.Height / 2, _o.SmallRegion.Width, _o.SmallRegion.Height);
+        region.Intersect(new Rect(halfW + 20, 130 + halfH, c.Width - 2 * halfW - 40, c.Height - 150 - 2 * halfH));
+        _region = region;
+
+        // The pen waits to the ghost's left, just outside ink range (the ghost is drawn above it).
+        _pen = c.Spawn("pen", _anchor.X - _ghost.Width / 2 - _o.InkReach - 60, _anchor.Y + 30);
         _pen.Opacity = 0;
         _pen.Rotation = PenTilt;
+        _tipGlow = new Ellipse
+        {
+            Width = 34,
+            Height = 34,
+            IsHitTestVisible = false,
+            Opacity = 0,
+            Fill = new RadialGradientBrush { GradientStops = { _tipColour, new GradientStop(Color.FromArgb(0, 170, 110, 255), 1) } },
+        };
+        c.Effects.Children.Add(_tipGlow);
         c.Status = "1 GHOST";
     }
 
@@ -194,11 +223,11 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         {
             _ghost.Opacity = 0.9 * k;
             _ghost.ScaleX = _ghost.ScaleY = 0.3 + 0.7 * Ease.OutBack(k);
-        }, () => _ghost.BobAmplitude = 6);
+        }, () => _ghost.BobAmplitude = _o.Bob);
         _c.After(0.5, () => _c.Animate(0.4, k =>
         {
             _pen.Opacity = k;
-            _pen.ScaleX = _pen.ScaleY = Ease.OutBack(k);
+            _pen.ScaleX = _pen.ScaleY = _o.PenScale * Ease.OutBack(k);
         }, () => _pen.BobAmplitude = 3));
         _c.After(_o.ArrivalSeconds, () =>
         {
@@ -209,6 +238,7 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
 
     public void Update(double dt)
     {
+        UpdateTipGlow();
         if (_stage == Stage.Done) return;
         if (_c.TimeRemaining <= 0)
         {
@@ -267,7 +297,8 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         {
             var away = p - other.Position;
             var d = Math.Max(away.Length, 1);
-            if (d < _o.Separation) desired += away / d * s.Speed * (1 - d / _o.Separation);
+            var separation = Math.Max(_o.Separation, s.Sprite.Width * _o.SmallGhostScale * 1.6); // never closer than about a body apart
+            if (d < separation) desired += away / d * s.Speed * (1 - d / separation);
         }
 
         if (_drawing)
@@ -292,7 +323,12 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         s.Sprite.X = s.Position.X;
         s.Sprite.Y = s.Position.Y;
         if (Math.Abs(s.Velocity.X) > 5) s.Sprite.FlipX = s.Velocity.X < 0;
-        s.Sprite.Play(s.LaughFor > 0 ? "laugh" : s.ScaredFor > 0 ? "scared" : "idle");
+        if (s.LaughFor <= 0)
+        {
+            // Re-playing the current clip is a no-op, so the loop never restarts. A laugh is left to run its course.
+            s.Sprite.PlaybackSpeed = 1;
+            s.Sprite.Play(s.ScaredFor > 0 ? "scared" : "idle");
+        }
     }
 
     // ---- drawing -------------------------------------------------------------------------------
@@ -302,15 +338,28 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         get
         {
             var a = PenTilt * Math.PI / 180;
-            return new Point(_pen.X - Math.Sin(a) * _pen.Height / 2, _pen.Y + Math.Cos(a) * _pen.Height / 2);
+            return new Point(_pen.X - Math.Sin(a) * PenHalfLength, _pen.Y + Math.Cos(a) * PenHalfLength);
         }
+    }
+
+    double PenHalfLength => _pen.Height * _o.PenScale / 2;
+
+    /// <summary>A soft glow that rides the pen tip, pulsing between cyan and violet, fading with the pen.</summary>
+    void UpdateTipGlow()
+    {
+        var tip = PenTip + _pen.DrawOffset;
+        var pulse = 0.5 + 0.5 * Math.Sin(_c.Elapsed * 4);
+        _tipColour.Color = Color.FromArgb(200, (byte)Ease.Lerp(120, 190, pulse), (byte)Ease.Lerp(240, 130, pulse), 255);
+        _tipGlow.Opacity = _pen.Opacity * (0.55 + 0.3 * pulse);
+        Canvas.SetLeft(_tipGlow, tip.X - _tipGlow.Width / 2);
+        Canvas.SetTop(_tipGlow, tip.Y - _tipGlow.Height / 2);
     }
 
     void MovePenTipTo(Point p)
     {
         var a = PenTilt * Math.PI / 180;
-        _pen.X = p.X + Math.Sin(a) * _pen.Height / 2;
-        _pen.Y = p.Y - Math.Cos(a) * _pen.Height / 2;
+        _pen.X = p.X + Math.Sin(a) * PenHalfLength;
+        _pen.Y = p.Y - Math.Cos(a) * PenHalfLength;
     }
 
     public void OnPointerDown(Point p)
@@ -320,23 +369,76 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         grab.Inflate(_o.PenGrab, _o.PenGrab);
         if (!grab.Contains(p)) return;
 
+        // Picked up: carried with no ink until the tip reaches a ghost.
         _drawing = true;
+        _inking = false;
         _pen.BobAmplitude = 0;
         _c.Audio.Play("pickup");
+        _c.Particles.Burst(p, 8, Cyan, 160, 0.45, 5, -80);  // a little magic as it's picked up
+        _c.Particles.Burst(p, 5, Purple, 120, 0.45, 5, -80);
+        MovePenTipTo(p);
+        TryStartInk(p);
+    }
+
+    /// <summary>Switch the ink on if the pen tip is within reach of a ghost that can be trapped right now.</summary>
+    void TryStartInk(Point tip)
+    {
+        var targets = _stage == Stage.InitialGhost ? [_ghost] : _spirits.Where(s => s.Alive).Select(s => s.Sprite).ToList();
+        if (!targets.Any(t => (t.Center - tip).Length < t.Height * Math.Abs(t.ScaleY) / 2 + _o.InkReach)) return;
+
+        _inking = true;
+        _c.Log($"ghost pen: ink on at {tip.X:0},{tip.Y:0}");
         _stroke.Clear();
         _strokeLength = 0;
         _glow = new Polyline { Stroke = ParticleSystem.Frozen(Color.FromArgb(70, Cyan.R, Cyan.G, Cyan.B)), StrokeThickness = 16, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, IsHitTestVisible = false };
         _core = new Polyline { Stroke = ParticleSystem.Frozen(Color.FromRgb(225, 255, 255)), StrokeThickness = 4, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, IsHitTestVisible = false };
+        _head = new Polyline { Stroke = ParticleSystem.Frozen(BrightCyan), StrokeThickness = 6, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, IsHitTestVisible = false };
         _c.Effects.Children.Add(_glow);
         _c.Effects.Children.Add(_core);
-        MovePenTipTo(p);
-        AddSample(p);
+        _c.Effects.Children.Add(_head);
+        AddSample(tip);
+
+        // "Ink on": a sparkle, and a glowing nib that rides on the pen tip while it draws.
+        _c.Particles.Burst(tip, 12, Cyan, 220, 0.4, 6, 0);
+        _nib ??= new Ellipse
+        {
+            Width = 30,
+            Height = 30,
+            IsHitTestVisible = false,
+            Fill = new RadialGradientBrush(Color.FromArgb(220, 200, 255, 255), Color.FromArgb(0, Cyan.R, Cyan.G, Cyan.B)),
+        };
+        if (!_c.Effects.Children.Contains(_nib)) _c.Effects.Children.Add(_nib);
+        PlaceNib(tip);
+    }
+
+    void PlaceNib(Point tip)
+    {
+        if (_nib == null) return;
+        Canvas.SetLeft(_nib, tip.X - _nib.Width / 2);
+        Canvas.SetTop(_nib, tip.Y - _nib.Height / 2);
+    }
+
+    void RemoveHead()
+    {
+        if (_head != null) _c.Effects.Children.Remove(_head);
+        _head = null;
+    }
+
+    void HideNib()
+    {
+        if (_nib != null) _c.Effects.Children.Remove(_nib);
     }
 
     public void OnPointerMove(Point p)
     {
         if (!_drawing) return;
         MovePenTipTo(p);
+        if (!_inking)
+        {
+            TryStartInk(p);
+            return;
+        }
+        PlaceNib(p);
         var step = (p - _stroke[^1]).Length;
         if (step < _o.SampleSpacing) return;
         _strokeLength += step;
@@ -354,6 +456,7 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         _stroke.Add(p);
         _glow!.Points.Add(p);
         _core!.Points.Add(p);
+        if (_head != null) _head.Points = new PointCollection(_stroke.Skip(Math.Max(0, _stroke.Count - 10))); // the last ~40 DIP glow brighter
     }
 
     public void OnPointerUp(Point p)
@@ -361,6 +464,14 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         if (!_drawing || _stage == Stage.Done) return;
         _drawing = false;
         _pen.BobAmplitude = 3;
+        HideNib();
+        if (!_inking)
+        {
+            _c.Log("ghost pen: put down without ink"); // just carried: nothing to judge
+            return;
+        }
+        RemoveHead();
+        _inking = false;
         var glow = _glow!;
         var core = _core!;
         _glow = _core = null;
@@ -433,35 +544,45 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         }
         else if (_spirits.FirstOrDefault(s => s.Sprite == who) is { } spirit)
         {
-            spirit.LaughFor = 0.6;
+            // One laugh stretched over SmallLaughSeconds, rather than the short clip restarting partway through.
+            spirit.LaughFor = _o.SmallLaughSeconds;
+            spirit.Sprite.PlaybackSpeed = (who.Definition.Clips.GetValueOrDefault("laugh")?.Duration ?? _o.SmallLaughSeconds) / _o.SmallLaughSeconds;
+            spirit.Sprite.Play("laugh");
         }
     }
 
     // ---- stages --------------------------------------------------------------------------------
 
-    /// <summary>The "capture" fails: the ghost squashes, freezes, bursts and splits in two.</summary>
+    /// <summary>
+    /// The "capture" fails, theatrically: the loop flashes, the ghost squashes (narrow and tall, trembling),
+    /// a cyan/violet flash bursts from it, and two smaller ghosts shoot out on opposite curving paths, wobbling
+    /// and trailing wisps, before settling into their own movement. No drawing until it's over.
+    /// </summary>
     void Split(Polyline glow, Polyline core)
     {
         _stage = Stage.Splitting;
-        Flash(glow, core, Color.FromRgb(120, 255, 120));
+        Flash(glow, core, BrightCyan);
         _c.Audio.Play("zap");
         _ghost.BobAmplitude = 0;
         _ghost.Play("scared");
         var centre = _ghost.Center;
-        var squash = _o.SplitSeconds * 0.5;
+        var squash = _o.SplitSeconds * 0.4;
 
         _c.Animate(squash, k =>
         {
-            _ghost.ScaleX = 1 + 0.35 * k;
-            _ghost.ScaleY = 1 - 0.4 * k;
-            _ghost.ShakeAmount = 4 * k;
+            var e = Ease.OutCubic(k);
+            _ghost.ScaleX = 1 - 0.3 * e;
+            _ghost.ScaleY = 1 + 0.22 * e;
+            _ghost.ShakeAmount = 5 * k;
         }, () =>
         {
-            Dissolve(glow, core, 0.2);
-            _ghost.Opacity = 0;
+            Dissolve(glow, core, 0.25);
+            _ghost.Opacity = 0; // the big ghost is gone; only the two new ones remain
             _ghost.ShakeAmount = 0;
-            _c.Particles.Ring(centre, Colors.White, 140, 0.4, 8);
-            _c.Particles.Burst(centre, 40, Cyan, 520, 0.7, 8, 0);
+            _c.Particles.Ring(centre, BrightCyan, 190, 0.45, 12);
+            _c.Particles.Ring(centre, Purple, 130, 0.35, 8);
+            _c.Particles.Burst(centre, 36, Cyan, 560, 0.7, 8, 0);
+            _c.Particles.Burst(centre, 20, Purple, 420, 0.6, 7, 0);
             _c.Audio.Play("laugh");
 
             for (var i = 0; i < _o.SplitGhostCount; i++)
@@ -470,12 +591,13 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
                 var sprite = _c.Spawn("ghost", centre.X, centre.Y, onEffectsLayer: true);
                 sprite.Opacity = 0.9;
                 sprite.ScaleX = sprite.ScaleY = 0;
-                sprite.BobAmplitude = 4;
+                sprite.BobAmplitude = _o.SmallBob;
                 var spirit = new Spirit
                 {
                     Sprite = sprite,
                     Position = centre,
-                    Velocity = new Vector(side * 280, -60 + i * 40), // fly apart in opposite directions
+                    // Out and up on one side, out and down on the other; steering bends both into arcs.
+                    Velocity = new Vector(side * 340, -side * 180),
                     Speed = _c.Demo ? (i == 0 ? 50 : 60) : _o.SmallSpeedMin + _c.Random.NextDouble() * (_o.SmallSpeedMax - _o.SmallSpeedMin),
                     Heading = side < 0 ? Math.PI : 0,
                     Wobble = 0.7 + i * 0.35 + (_c.Demo ? 0 : _c.Random.NextDouble() * 0.3), // different rhythms
@@ -483,6 +605,25 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
                 };
                 _spirits.Add(spirit);
                 _c.Animate(0.3, k => sprite.ScaleX = sprite.ScaleY = _o.SmallGhostScale * Ease.OutBack(k));
+
+                // Wobble away from the other ghost, trailing fading wisps; a startled puff as it settles.
+                var sinceWisp = 0.0;
+                var last = 0.0;
+                _c.Animate(0.6, k =>
+                {
+                    sprite.Rotation = side * 28 * Math.Sin(k * Math.PI * 2) * (1 - k);
+                    sinceWisp += k - last;
+                    last = k;
+                    if (sinceWisp < 0.06 || !spirit.Alive) return;
+                    sinceWisp = 0;
+                    _c.Particles.Burst(sprite.Center, 1, k < 0.5 ? Cyan : Purple, 25, 0.45, 14, 0);
+                }, () =>
+                {
+                    sprite.Rotation = 0;
+                    if (!spirit.Alive) return;
+                    _c.Particles.Burst(sprite.Center, 10, Cyan, 200, 0.4, 5, 0);
+                    spirit.ScaredFor = Math.Max(spirit.ScaredFor, 0.7); // startled, then back to idle
+                });
             }
             _c.Banner("CATCH THEM BOTH!", _c.Height * 0.2, 2.0, Cyan);
             UpdateStatus();
@@ -548,7 +689,9 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         if (!_c.Resolve(EncounterResult.Failure)) return;
         _stage = Stage.Done;
         if (_glow != null && _core != null) Dissolve(_glow, _core, 0.2);
-        _drawing = false;
+        _drawing = _inking = false;
+        HideNib();
+        RemoveHead();
         _c.Audio.Play("laugh");
 
         // Whatever is still loose laughs and escapes upwards.
@@ -573,6 +716,6 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
     public void End()
     {
         _stage = Stage.Done;
-        _drawing = false;
+        _drawing = _inking = false;
     }
 }

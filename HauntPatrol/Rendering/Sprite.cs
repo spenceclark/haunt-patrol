@@ -22,6 +22,9 @@ public sealed class Sprite
     public double ShakeAmount;
     public double PlaybackSpeed = 1;
 
+    /// <summary>The bob/shake offset applied on the last update: where the sprite is drawn relative to X, Y.</summary>
+    public Vector DrawOffset { get; private set; }
+
     public double Width => Definition.Width;
     public double Height => Definition.Height;
     public string Animation => _clip.Name;
@@ -151,6 +154,7 @@ public sealed class Sprite
             oy += Math.Cos(_age * 71) * shake;
         }
 
+        DrawOffset = new Vector(ox, oy);
         _scale.ScaleX = ScaleX * (FlipX ? -1 : 1);
         _scale.ScaleY = ScaleY;
         _rotate.Angle = Rotation;

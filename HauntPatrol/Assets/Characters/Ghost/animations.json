@@ -1,10 +1,10 @@
 {
   "id": "ghost",
-  "width": 120, "height": 140,
-  "pivotX": 60, "pivotY": 70,
+  "width": 240, "height": 280,
+  "pivotX": 120, "pivotY": 140,
   "animations": {
-    "idle":   { "source": "idle.png",   "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 3, "loop": true },
-    "laugh":  { "source": "laugh.png",  "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 6, "loop": false },
-    "scared": { "source": "scared.png", "frameWidth": 120, "frameHeight": 140, "frameCount": 2, "fps": 8, "loop": true }
+    "idle": { "source": "idle.png", "frameWidth": 360, "frameHeight": 420, "frameCount": 36, "fps": 12, "loop": true },
+    "laugh": { "source": "laugh.png", "frameWidth": 360, "frameHeight": 420, "frameCount": 16, "fps": 46, "loop": false },
+    "scared": { "source": "scared.png", "frameWidth": 360, "frameHeight": 420, "frameCount": 42, "fps": 18, "loop": true }
   }
 }

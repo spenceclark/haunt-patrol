@@ -21,6 +21,8 @@
 //                    centre; the pivot is the frame centre. For characters positioned by their middle (cat).
 //                    Anchoring on the paws, not the bounding box, keeps a swishing tail from shifting the body
 //                    and lets the game mirror the sprite in place.
+//   --anchor box     first frame's bounding-box centre; the pivot is the frame centre. For floating characters
+//                    with no feet or paws (ghost).
 
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -66,10 +68,10 @@ var loaded = clips.Select(c =>
     var frames = LoadFrames(c.Source);
     var boxes = frames.Select(Bounds).ToList();
     var first = boxes[0];
-    var centred = anchor == "centre";
+    var centred = anchor is "centre" or "box";
     return (c.Name, c.Fps, c.Loop, Frames: frames, Boxes: boxes,
         Height: (double)(first.Bottom - first.Top + 1),
-        AnchorX: centred ? PawCentreX(frames[0], first) : (first.Left + first.Right) / 2.0,
+        AnchorX: anchor == "centre" ? PawCentreX(frames[0], first) : (first.Left + first.Right + 1) / 2.0,
         AnchorY: centred ? (first.Top + first.Bottom + 1) / 2.0 : first.Bottom + 1.0);
 }).ToList();
 
@@ -84,7 +86,7 @@ foreach (var b in c.Boxes)
 }
 double standing;
 PointF pivot;
-if (anchor == "centre")
+if (anchor is "centre" or "box")
 {
     standing = Math.Floor(Math.Min((frame.Width / 2.0 - Margin) / maxSide, (frame.Height / 2.0 - Margin) / Math.Max(maxAbove, maxBelow)));
     pivot = new PointF(frame.Width / 2f, frame.Height / 2f);

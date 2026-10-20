@@ -37,7 +37,8 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
 
     readonly List<Puff> _puffs = [];
     readonly List<Apparition> _apparitions = [];
-    double _time, _nextFace = 0.8, _nextEyes = 0.5;
+    double _time, _nextFace = 0.25, _nextEyes = 0.1; // apparitions show up almost at once
+    readonly List<ParticleSystem> _particles = [];
 
     public void Start()
     {
@@ -47,6 +48,13 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
 
         foreach (var s in surfaces)
         {
+            // Entrance: a violet/blue spectral pulse from where the ghost escaped.
+            var particles = new ParticleSystem(s.Canvas, random);
+            _particles.Add(particles);
+            particles.Ring(s.Impact, Color.FromRgb(180, 120, 255), 420, 0.9, 16);
+            particles.Ring(s.Impact, Color.FromRgb(120, 160, 255), 280, 0.7, 10);
+            particles.Burst(s.Impact, 30, Color.FromRgb(170, 140, 255), 480, 0.9, 10, 0);
+
             for (var i = 0; i < 14; i++)
             {
                 var fromLeft = i % 2 == 0;
@@ -57,9 +65,9 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
                     Size = size,
                     Phase = random.NextDouble() * Math.PI * 2,
                     // Start beyond a lower corner and roll inwards, staggered so the fog keeps arriving.
-                    Position = new Point(fromLeft ? -size * (0.6 + i * 0.04) : s.Size.Width + size * (0.6 + i * 0.04) - size,
+                    Position = new Point(fromLeft ? -size * (0.35 + i * 0.03) : s.Size.Width + size * (0.35 + i * 0.03) - size,
                                          s.Size.Height - size * 0.3 - random.NextDouble() * s.Size.Height * 0.22),
-                    Velocity = new Vector((fromLeft ? 1 : -1) * (110 + random.NextDouble() * 120), -random.NextDouble() * 18),
+                    Velocity = new Vector((fromLeft ? 1 : -1) * (150 + random.NextDouble() * 120), -random.NextDouble() * 18),
                 };
                 s.Canvas.Children.Add(puff.Shape);
                 _puffs.Add(puff);
@@ -72,8 +80,8 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
     {
         var brush = new RadialGradientBrush(
         [
-            new GradientStop(Color.FromArgb(140, c.R, c.G, c.B), 0),
-            new GradientStop(Color.FromArgb(80, c.R, c.G, c.B), 0.55),
+            new GradientStop(Color.FromArgb(165, c.R, c.G, c.B), 0),
+            new GradientStop(Color.FromArgb(95, c.R, c.G, c.B), 0.55),
             new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1),
         ]);
         brush.Freeze();
@@ -131,6 +139,8 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
             }
         }
 
+        foreach (var p in _particles) p.Update(dt);
+
         var opacity = Math.Clamp((Duration - _time) / FadeSeconds, 0, 1);
         foreach (var s in surfaces) s.Canvas.Opacity = opacity;
     }
@@ -176,5 +186,6 @@ public sealed class SpectralFogEffect(IReadOnlyList<PenaltySurface> surfaces, Au
         foreach (var s in surfaces) s.Canvas.Children.Clear();
         _puffs.Clear();
         _apparitions.Clear();
+        _particles.Clear();
     }
 }

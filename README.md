@@ -14,7 +14,7 @@ system is changed.
 |---|---|---|
 | **Skeleton Siege** (20 s) | The skeleton walks back and forth. Grab the catapult's projectile, drag back to aim (part of the arc is shown), and release to fire. Aim ahead of the skeleton. You have 3 shots. | It throws a bone at the screen and the glass cracks. |
 | **Witch's Familiar** (25 s) | Drag the broom near the cat to make it run away, and herd it into the portal. | The cat knocks over the cauldron and slime gets all over the screen. |
-| **Ghost Trap** (25 s) | Pick up the magic pen and draw a loop around the floating ghost. It splits into two smaller ghosts that edge away from the pen, and each needs its own loop. Failed loops fade, and you can try again. | The ghosts escape laughing and spectral fog rolls in, with faces and glowing eyes. |
+| **Ghost Trap** (25 s) | Pick up the magic pen and carry it to the floating ghost. It starts drawing once it's close; then draw a loop around the ghost. It splits into two smaller ghosts that edge away from the pen, and each needs its own loop. Failed loops fade, and you can try again. | The ghosts escape laughing and spectral fog rolls in, with faces and glowing eyes. |
 | **Zombie Invasion** (25 s) | Zombies come in waves. Click them to zap them before they reach the brain. Brutes take two hits, and runners are fast. A threat meter and the brain's glow show how close the nearest zombie is. The brain survives one bite. | Zombie handprints slap onto the screen and green mould spreads in from the edges. |
 
 Gameplay tuning (speeds, ammo, waves, loop sizes) lives in `SkeletonSiegeOptions`, `GhostTrapOptions` and

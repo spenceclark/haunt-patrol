@@ -7,8 +7,8 @@ place, keeping its name, and the game picks it up. No code change is needed.
 > `tools/MakeAssets.cs` only writes placeholder files that don't exist yet, so it never overwrites production
 > art. `--force` regenerates every placeholder.
 
-**Production art so far:** Skeleton (all five clips) and Cat (all three clips), both imported from Ludo exports
-with `tools/ImportSprite.cs` (see §2.7).
+**Production art so far:** Skeleton (all five clips), Cat (all three) and Ghost (all three), imported from Ludo
+exports with `tools/ImportSprite.cs` (see §2.7).
 
 ---
 
@@ -145,6 +145,9 @@ Each `--clip` is `name=source:fps:loop|once`.
 - `centre` aligns the paws and the middle of the body. The pivot is the frame centre. Use it for characters
   the game positions by their middle, such as the cat. Lining up on the paws, rather than the bounding box,
   stops a swishing tail from shifting the body, and lets the game mirror the sprite in place.
+- `box` aligns the centre of the first frame's bounding box. The pivot is the frame centre. Use it for
+  floating characters with no feet or paws, such as the ghost; on the ghost, the "paws" would be its swaying
+  tail.
 
 The cat import:
 
@@ -224,17 +227,29 @@ it off-screen when it escapes.
 
 ### 3.3 Ghost (Ghost Trap)
 
-`Characters/Ghost/` · id `ghost` · logical **120 × 140** · pivot **(60, 70)** at the centre ·
-**click-through** layer, so semi-transparency is welcome · faces right
+`Characters/Ghost/` · id `ghost` · logical **240 × 280** (2× the original 120 × 140) · pivot **(120, 140)**
+at the centre · **click-through** layer, so semi-transparency is welcome · faces right · **production art:
+done**, imported with `--anchor box` into 360 × 420 frames (1.5 px per DIP). The ghost stands about 260 DIP
+tall. The art has its own soft blue edge, so no extra glow is added.
 
-| Clip | Loop | Suggested frames | Target | Used for |
-|---|---|---|---|---|
-| `idle` | yes | 6–8 @ 8 fps | — | Floating |
-| `laugh` | no | 4–6 | **~0.35 s** | A missed loop, and escaping on timeout. Small ghosts replay it for ~0.6 s. |
-| `scared` | yes | 4 @ 8 fps | — | When the pen is near, during the split squash, and when the other ghost is caught |
+| Clip | Loop | Delivered | Used for |
+|---|---|---|---|
+| `idle` | yes | 36 @ 12 fps (3.0 s float cycle) | Floating |
+| `laugh` | no | 16 @ 46 fps (0.35 s) | A missed loop, and escaping on timeout. The small ghosts play the same clip once, slowed to 0.6 s (`GhostTrapOptions.SmallLaughSeconds`). |
+| `scared` | yes | 42 @ 18 fps (2.33 s) | When the pen is near, during the split squash, and when the other ghost is caught |
 
-The same sprite is used for the **two small ghosts at 68% scale** (about 82 × 95 DIP). Make sure the face
-still reads at that size. The capture effect (shrink and spin) is done in code.
+- **Frame rates are starting values.** The exports carry no timing metadata.
+- **The art floats on its own,** about 7 DIP of drift per cycle at this size. So the procedural bob is
+  reduced to 2 DIP for the big ghost and 1.5 for the small ones (`GhostTrapOptions.Bob` and `SmallBob`).
+- The same sprite is used for the **two small ghosts at 68% scale** (about 163 × 190 DIP). Their faces read
+  clearly at that size. The capture effect (shrink and spin) is done in code.
+- **Placement scales with the ghost:** the pen starts outside ink range, and the small ghosts' area keeps them
+  fully on screen and at least about a body apart.
+- **Known art issues:**
+  - `laugh` frames 9 and 11 have dark grey smudges by the hands.
+  - `scared` reads as a nervous grin (wide eyes, gritted teeth) more than real fright.
+  - At 46 fps the full-size laugh is a quick cackle. If it feels rushed, about 0.6 s (26 fps) would show the
+    full laugh more clearly.
 
 ### 3.4 Zombies (Zombie Invasion): three variants
 
@@ -286,7 +301,7 @@ baked glow, or with a neutral one; the code tints a glow ellipse from purple to 
 | `Props/broom.png` | `broom` | 44 × 180 | interactive | Cat | Vertical, bristles at the bottom. The cat flees from a point 35% below the centre. It tilts ±35° while dragged. |
 | `Props/portal.png` | `portal` | 200 × 200 | interactive | Cat | Spins continuously at 90°/s, so make it roughly radially symmetric. The capture radius is ~100 DIP. Good candidate for animated frames (§2.4). |
 | `Props/cauldron.png` | `cauldron` | 120 × 96 | interactive | Cat | Tips over 100° about its centre on failure, and slime bursts from its rim. |
-| `Props/pen.png` | `pen` | 28 × 110 | interactive | Ghost | Vertical, **writing tip at the bottom centre**. It's held tilted 25° and the trail starts at the tip. |
+| `Props/pen.png` | `pen` | 28 × 110 | interactive | Ghost | Vertical, **writing tip at the bottom centre**. It's held tilted 25° and the trail starts at the tip. It's drawn at 125% (`GhostTrapOptions.PenScale`), with a pulsing glow on the tip added in code. |
 | `Props/blaster.png` | `blaster` | 100 × 64 | click-through | Zombies | Sits bottom-left. Bolts leave from a point 30 px right and 22 px above its centre, so put the muzzle at the upper right. |
 | `Props/bonehand.png` | `bonehand` | 46 × 70 | click-through | Zombies | Skeletal hand, fingers up. Two of them poke up from the bottom edge as a warning. |
 
