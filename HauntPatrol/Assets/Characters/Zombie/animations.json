@@ -1,11 +1,9 @@
 {
   "id": "zombie",
-  "width": 70, "height": 100,
-  "pivotX": 35, "pivotY": 100,
+  "width": 228, "height": 175,
+  "pivotX": 114, "pivotY": 168.61,
   "animations": {
-    "idle": { "source": "walk.png", "frameWidth": 70, "frameHeight": 100, "frameCount": 1, "fps": 1, "loop": true },
-    "walk": { "source": "walk.png", "frameWidth": 70, "frameHeight": 100, "frameCount": 2, "fps": 4, "loop": true },
-    "hit":  { "source": "hit.png",  "frameWidth": 70, "frameHeight": 100, "frameCount": 1, "fps": 5, "loop": false },
-    "die":  { "source": "die.png",  "frameWidth": 70, "frameHeight": 100, "frameCount": 2, "fps": 5, "loop": false }
+    "walk": { "source": "walk.png", "frameWidth": 285, "frameHeight": 219, "frameCount": 35, "fps": 24, "loop": true },
+    "die": { "source": "die.png", "frameWidth": 285, "frameHeight": 219, "frameCount": 25, "fps": 40, "loop": false }
   }
 }

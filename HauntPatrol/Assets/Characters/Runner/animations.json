@@ -1,11 +1,9 @@
 {
   "id": "runner",
-  "width": 62, "height": 92,
-  "pivotX": 31, "pivotY": 92,
+  "width": 210, "height": 161,
+  "pivotX": 105, "pivotY": 147.38,
   "animations": {
-    "idle": { "source": "walk.png", "frameWidth": 62, "frameHeight": 92, "frameCount": 1, "fps": 1, "loop": true },
-    "walk": { "source": "walk.png", "frameWidth": 62, "frameHeight": 92, "frameCount": 2, "fps": 4, "loop": true },
-    "hit":  { "source": "hit.png",  "frameWidth": 62, "frameHeight": 92, "frameCount": 1, "fps": 5, "loop": false },
-    "die":  { "source": "die.png",  "frameWidth": 62, "frameHeight": 92, "frameCount": 2, "fps": 5, "loop": false }
+    "walk": { "source": "walk.png", "frameWidth": 263, "frameHeight": 201, "frameCount": 42, "fps": 36, "loop": true },
+    "die": { "source": "die.png", "frameWidth": 263, "frameHeight": 201, "frameCount": 16, "fps": 40, "loop": false }
   }
 }

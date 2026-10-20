@@ -7,8 +7,8 @@ place, keeping its name, and the game picks it up. No code change is needed.
 > `tools/MakeAssets.cs` only writes placeholder files that don't exist yet, so it never overwrites production
 > art. `--force` regenerates every placeholder.
 
-**Production art so far:** Skeleton (all five clips), Cat (all three) and Ghost (all three), imported from Ludo
-exports with `tools/ImportSprite.cs` (see §2.7).
+**Production art so far:** Skeleton (all five clips), Cat (all three), Ghost (all three) and the three zombies
+(seven clips), imported from Ludo exports with `tools/ImportSprite.cs` (see §2.7).
 
 ---
 
@@ -136,7 +136,8 @@ come from a ZIP or a folder of PNGs, played in file-name order. The sources are 
 dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Skeleton --id skeleton --frame 220x340 --logical 165x255 --clip idle=ART-PROOF/Skeleton/Idle.zip:15:loop --clip walk=ART-PROOF/Skeleton/walk.zip:24:loop --clip attack=ART-PROOF/Skeleton/attack.zip:20:once --clip hit=ART-PROOF/Skeleton/hit.zip:24:once --clip defeat=ART-PROOF/Skeleton/defeat.zip:24:once
 ```
 
-Each `--clip` is `name=source:fps:loop|once`.
+Each `--clip` is `name=source:fps:loop|once`. A source can end in `#first-last` to take a contiguous range of its
+frames, for example `zombie_brute_hit.zip#0-7`.
 
 `--anchor` decides what lines up between clips:
 
@@ -145,6 +146,8 @@ Each `--clip` is `name=source:fps:loop|once`.
 - `centre` aligns the paws and the middle of the body. The pivot is the frame centre. Use it for characters
   the game positions by their middle, such as the cat. Lining up on the paws, rather than the bounding box,
   stops a swishing tail from shifting the body, and lets the game mirror the sprite in place.
+- `stance` aligns the feet, like `feet`, but centres on the feet themselves rather than the bounding box. A
+  clip whose first frame is mid-stride can make that jump, which is why the zombies use `feet`.
 - `box` aligns the centre of the first frame's bounding box. The pivot is the frame centre. Use it for
   floating characters with no feet or paws, such as the ghost; on the ghost, the "paws" would be its swaying
   tail.
@@ -254,23 +257,47 @@ tall. The art has its own soft blue edge, so no extra glow is added.
 ### 3.4 Zombies (Zombie Invasion): three variants
 
 All three are on the **interactive** layer: every visible pixel is clickable, which is what you want. They
-face right and pivot at the feet.
+face right. **Production art: done**, imported with `--anchor feet`. Feet sit on the baseline and each clip is
+centred on the first frame's whole figure, so the body doesn't jump between walk, hit and die.
 
-| Variant | Folder / id | Logical size | Pivot | Look |
-|---|---|---|---|---|
-| Normal | `Characters/Zombie/` · `zombie` | **70 × 100** | (35, 100) | Classic cartoon zombie |
-| Brute | `Characters/Brute/` · `brute` | **100 × 130** | (50, 130) | Bigger, heavier, armoured or helmeted. Takes 2 hits. |
-| Runner | `Characters/Runner/` · `runner` | **62 × 92** | (31, 92) | Skinny and fast, in a loud colour. The code leans it forward 12°. |
+The boxes are **wider than the original placeholders** so the zombies keep their height. Their death and run
+poses are about as wide as the zombie is tall. Clicks still reach the desktop through every transparent pixel;
+the wider box only means clicks on wide poses (lying down, arms out) aren't lost.
 
-Clips:
+| Variant | Folder / id | Logical size | Pivot (feet) | Frames | Stands about | Look |
+|---|---|---|---|---|---|---|
+| Normal | `Characters/Zombie/` · `zombie` | **228 × 175** | (114, 168.6) | 285 × 219 | 152 DIP | Ragged office zombie |
+| Brute | `Characters/Brute/` · `brute` | **392 × 228** | (196, 212) | 490 × 285 | 182 DIP | Armoured, spiked helmet. Takes 2 hits. |
+| Runner | `Characters/Runner/` · `runner` | **210 × 161** | (105, 147.4) | 263 × 201 | 126 DIP | Pink mohawk, trainers. The code leans it forward 12°. |
 
-| Clip | Needed by | Loop | Suggested frames | Target | Used for |
-|---|---|---|---|---|---|
-| `walk` | all three | yes | 6–8 @ 8–10 fps | — | Advancing on the brain. The code adds a ±7° shamble. |
-| `die` | all three | no | 4–6 | **~0.4 s** | Disintegrating. Afterwards the code fades it, in 0.12 s for runners and 0.3 s for the others. Keep the runner's short. |
-| `hit` | **Brute only** | no | 2–3 | **~0.2 s** | Surviving the first zap. Movement pauses for 0.25 s. Normal zombies and runners die from one zap, so they never play it. |
+These are 1.75× the first production boxes (Normal 130 × 100, Brute 224 × 130, Runner 120 × 92), which were
+themselves widened from the placeholders' 70 × 100, 100 × 130 and 62 × 92. The frames are 1.25 px per DIP
+rather than 2, which keeps all three at about 66 MB once loaded (at 2× the brute alone would take about
+100 MB). That's still sharper than 1:1 at 100% scaling. The hitboxes grew with the sprites, so zombies are a
+little easier to click.
 
-No `idle` is needed: if a clip is missing, the first clip in the file plays instead.
+The pivots sit a few DIP above the bottom of the box, which leaves room for the death poses that sprawl just
+below the feet line.
+
+Delivered clips (no timing metadata in the exports, so these rates are starting values):
+
+| Character | Clip | Frames | FPS | Duration | Loop | Notes |
+|---|---|---|---|---|---|---|
+| Normal | `walk` | 35 | 24 | 1.46 s | yes | Shamble; the code adds a ±7° sway |
+| Normal | `die` | 25 | 40 | 0.63 s | no | Recoil, fall back, lie flat; then a 0.3 s fade |
+| Brute | `walk` | 36 | 20 | 1.80 s | yes | Heavy stomp |
+| Brute | `hit` | 8 (frames 0–7 of 16) | 32 | 0.25 s | no | Only the recoil; the rest of the export turns to face the camera, which would pop back to the side-on walk |
+| Brute | `die` | 25 | 40 | 0.63 s | no | Rear up, topple back, dust; then a 0.3 s fade |
+| Runner | `walk` | 42 | 36 | 1.17 s | yes | Sprint in place; the code adds the lean |
+| Runner | `die` | 16 | 40 | 0.40 s | no | Stumble and sprawl forward; then a fast 0.12 s fade |
+
+- **Dying zombies:** a dying zombie can't be clicked and no longer counts towards the threat, so the slightly
+  longer deaths (0.63 s, against the ~0.4 s target) don't change gameplay. The last zombie's death only delays
+  the victory banner by a fraction of a second.
+- **Known art issues:**
+  - Some exports reach the very edge of their canvas (normal and brute `die`, runner `die`, brute `hit`), so
+    a few pixels of a sprawled limb may have been cut off in the source.
+  - The death clips include a soft ground shadow, which is clickable on the interactive layer.
 
 Optional extra: an `emerge` clip for climbing out of the ground. The game doesn't play it yet; it currently
 scales the zombie up from its feet.

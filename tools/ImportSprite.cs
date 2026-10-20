@@ -23,6 +23,10 @@
 //                    and lets the game mirror the sprite in place.
 //   --anchor box     first frame's bounding-box centre; the pivot is the frame centre. For floating characters
 //                    with no feet or paws (ghost).
+//   --anchor stance  like feet (feet on the baseline, pivot at the feet) but centred on the feet themselves
+//                    rather than the bounding box, so reaching arms don't shift the body (side-on zombies).
+//
+// A clip source may end in #first-last to take a contiguous range of its frames (e.g. hit.zip#0-7).
 
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -54,7 +58,7 @@ for (var i = 0; i < args.Length; i++)
             var parts = spec[(eq + 1)..].Split(':');
             // Windows drive letters contain ':' too: the last two parts are fps and loop/once.
             var source = string.Join(':', parts[..^2]);
-            clips.Add((spec[..eq], source, double.Parse(parts[^2]), parts[^1] == "loop"));
+            clips.Add((spec[..eq], source, double.Parse(parts[^2]), parts[^1] == "loop")); // source may carry #first-last
             break;
         default: throw new ArgumentException($"unknown argument {args[i]}");
     }
@@ -65,13 +69,20 @@ if (outDir == null || id == null || frame.IsEmpty || logical.IsEmpty || clips.Co
 // ---- load and measure ----------------------------------------------------------------------------
 var loaded = clips.Select(c =>
 {
-    var frames = LoadFrames(c.Source);
+    var hash = c.Source.LastIndexOf('#');
+    var frames = LoadFrames(hash < 0 ? c.Source : c.Source[..hash]);
+    if (hash >= 0)
+    {
+        var range = c.Source[(hash + 1)..].Split('-').Select(int.Parse).ToArray();
+        foreach (var unused in frames.Where((_, i) => i < range[0] || i > range[1])) unused.Dispose();
+        frames = frames.Skip(range[0]).Take(range[1] - range[0] + 1).ToList();
+    }
     var boxes = frames.Select(Bounds).ToList();
     var first = boxes[0];
     var centred = anchor is "centre" or "box";
     return (c.Name, c.Fps, c.Loop, Frames: frames, Boxes: boxes,
         Height: (double)(first.Bottom - first.Top + 1),
-        AnchorX: anchor == "centre" ? PawCentreX(frames[0], first) : (first.Left + first.Right + 1) / 2.0,
+        AnchorX: anchor is "centre" or "stance" ? PawCentreX(frames[0], first) : (first.Left + first.Right + 1) / 2.0,
         AnchorY: centred ? (first.Top + first.Bottom + 1) / 2.0 : first.Bottom + 1.0);
 }).ToList();
 

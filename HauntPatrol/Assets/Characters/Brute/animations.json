@@ -1,11 +1,10 @@
 {
   "id": "brute",
-  "width": 100, "height": 130,
-  "pivotX": 50, "pivotY": 130,
+  "width": 392, "height": 228,
+  "pivotX": 196, "pivotY": 212,
   "animations": {
-    "idle": { "source": "walk.png", "frameWidth": 100, "frameHeight": 130, "frameCount": 1, "fps": 1, "loop": true },
-    "walk": { "source": "walk.png", "frameWidth": 100, "frameHeight": 130, "frameCount": 2, "fps": 4, "loop": true },
-    "hit":  { "source": "hit.png",  "frameWidth": 100, "frameHeight": 130, "frameCount": 1, "fps": 5, "loop": false },
-    "die":  { "source": "die.png",  "frameWidth": 100, "frameHeight": 130, "frameCount": 2, "fps": 5, "loop": false }
+    "walk": { "source": "walk.png", "frameWidth": 490, "frameHeight": 285, "frameCount": 36, "fps": 20, "loop": true },
+    "hit": { "source": "hit.png", "frameWidth": 490, "frameHeight": 285, "frameCount": 8, "fps": 32, "loop": false },
+    "die": { "source": "die.png", "frameWidth": 490, "frameHeight": 285, "frameCount": 25, "fps": 40, "loop": false }
   }
 }

@@ -392,6 +392,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         _c.Particles.Burst(at, 8, Color.FromRgb(200, 255, 255), 260, 0.35, 5, 0);
 
         z.Health--;
+        _c.Log($"zombie: zapped {z.Kind} at {z.Position.X:0},{z.Position.Y:0}, health left {z.Health}");
         if (z.Health <= 0)
         {
             Die(z);
@@ -455,6 +456,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         _c.Animate(0.15, k => z.Position = Ease.Lerp(from, _brainPos, 0.5 * k), () =>
         {
             _brainHealth = Math.Max(0, _brainHealth - 1);
+            _c.Log($"zombie: {z.Kind} bit the brain, health left {_brainHealth}");
             ShowBrainHealth();
             _brain.Play("hit");
             _brain.Shake(0.35, 8);
