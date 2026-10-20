@@ -40,7 +40,7 @@ public sealed class SkeletonSiegeOptions
     public double MaxPull { get; init; } = 230;
     public double MinPull { get; init; } = 25;
     public double GrabRadius { get; init; } = 70;
-    public double ProjectileRadius { get; init; } = 18;
+    public double ProjectileRadius { get; init; } = 27; // half the projectile art (54 DIP)
     public double HitPadding { get; init; } = 30;    // generous on purpose
     public double PreviewSeconds { get; init; } = 0.9; // only part of the arc, so aiming still takes skill
     public double WindUpSeconds { get; init; } = 5;
@@ -126,7 +126,7 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
         _skeleton = c.Spawn("skeleton", skeletonX, _groundY); // character pivot: feet
         _skeleton.FlipX = _dir < 0; // art faces right; face the way it will walk
 
-        _rest = new Point(catapultX, _groundY - catapultHeight + 8);
+        _rest = new Point(catapultX, _groundY - catapultHeight + 12); // in the cup, just below the catapult's top centre
         _ballPos = _rest;
         _ball = c.Spawn("projectile", _rest.X, _rest.Y);
 

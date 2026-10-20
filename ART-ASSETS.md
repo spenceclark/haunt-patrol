@@ -332,15 +332,44 @@ source. The victory face reads as mild, not overjoyed.
 
 | File | id | Size | Layer | Used in | Notes for the artist |
 |---|---|---|---|---|---|
-| `Props/catapult.png` | `catapult` | 150 × 110 | interactive | Skeleton | Base sits on the bottom edge. The projectile rests about 8 px below the **top centre** (the cup). The game mirrors it and rocks it 10° when firing. |
-| `Props/projectile.png` | `projectile` | 36 × 36 | interactive | Skeleton | Spins in flight, so keep it roughly round. |
-| `Props/bone.png` | `bone` | 70 × 26 | click-through | Skeleton | Spins and is **scaled up to 10×** as it flies at the viewer. Provide it hi-res via §2.4. |
-| `Props/broom.png` | `broom` | 44 × 180 | interactive | Cat | Vertical, bristles at the bottom. The cat flees from a point 35% below the centre. It tilts ±35° while dragged. |
-| `Props/portal.png` | `portal` | 200 × 200 | interactive | Cat | Spins continuously at 90°/s, so make it roughly radially symmetric. The capture radius is ~100 DIP. Good candidate for animated frames (§2.4). |
-| `Props/cauldron.png` | `cauldron` | 120 × 96 | interactive | Cat | Tips over 100° about its centre on failure, and slime bursts from its rim. |
-| `Props/pen.png` | `pen` | 28 × 110 | interactive | Ghost | Vertical, **writing tip at the bottom centre**. It's held tilted 25° and the trail starts at the tip. It's drawn at 125% (`GhostTrapOptions.PenScale`), with a pulsing glow on the tip added in code. |
-| `Props/blaster.png` | `blaster` | 100 × 64 | click-through | Zombies | Sits bottom-left. Bolts leave from a point 30 px right and 22 px above its centre, so put the muzzle at the upper right. |
-| `Props/bonehand.png` | `bonehand` | 46 × 70 | click-through | Zombies | Skeletal hand, fingers up. Two of them poke up from the bottom edge as a warning. |
+| `Props/catapult.png` | `catapult` | 225 × 165 | interactive | Skeleton | Base sits on the bottom edge. The projectile rests 12 px below the **top centre** (the cup). The game mirrors it and rocks it 10° when firing. |
+| `Props/projectile.png` | `projectile` | 54 × 54 | interactive | Skeleton | Spins in flight, so keep it roughly round. Collides as a circle of radius 27 (`ProjectileRadius`). |
+| `Props/bone.png` | `bone` | 105 × 39 | click-through | Skeleton | Spins and is **scaled up to 10×** as it flies at the viewer. Shipped hi-res as `Characters/Bone/` (840 × 312, 8 px per DIP, which the loader prefers). This 105 × 39 file is only a fallback. |
+| `Props/broom.png` | `broom` | 77 × 315 | interactive | Cat | Vertical, bristles at the bottom. The cat flees from a point 35% below the centre. It tilts ±35° while dragged. |
+| `Props/portal.png` | `portal` | 300 × 300 | interactive | Cat | Spins continuously at 90°/s, so make it roughly radially symmetric. The capture radius is 150 DIP (`CaptureRadius`), and its centre sits 220 DIP from the screen edge. |
+| `Props/cauldron.png` | `cauldron` | 240 × 192 | interactive | Cat | Tips over 100° about its centre on failure, and slime bursts from its rim. |
+| `Props/pen.png` | `pen` | 42 × 165 | interactive | Ghost | Vertical, **writing tip at the bottom centre**. It's held tilted 25° and the trail starts at the tip. It's drawn at 125% (`GhostTrapOptions.PenScale`), with a pulsing glow on the tip added in code. |
+| `Props/blaster.png` | `blaster` | 175 × 112 | click-through | Zombies | Sits bottom-left, centred 110 DIP from the left edge. Bolts leave from a point 70 px right and 30 px above its centre (the production muzzle's mouth), so put the muzzle at the upper right. |
+| `Props/bonehand.png` | `bonehand` | 80 × 122 | click-through | Zombies | Skeletal hand, fingers up. Two of them poke up from the bottom edge as a warning. |
+
+### 4.1 Production props and effects
+
+Every image in §4 and §5 is production art, imported from the high-resolution masters in `ART-PROOF/Props/`
+and `ART-PROOF/Effects/`:
+
+```
+dotnet run tools/ImportProp.cs -- ART-PROOF/Props/broom.png HauntPatrol/Assets/Props/broom.png 44x180 --clean
+```
+
+The importer scales the visible pixels (alpha > 16) uniformly to the largest size that fits and pads the rest
+with transparency, so nothing is stretched. Options:
+- `--bottom` rests the art on the bottom edge. Used for the catapult, the cauldron and the bone hand, whose wrist
+  is cut off at the edge so it climbs out of the screen.
+- `--pin` puts a chosen source point on a chosen output point. The pen's nib, at (362, 2104) in the master, goes
+  to (21, 164), the bottom centre the game uses as the tip. Centring the outline would not do this, because the
+  pen's clip sticks out to one side.
+- `--res 8` writes the bone's hi-res frame.
+- `--clean` is used for the interactive props (catapult, projectile, broom, portal, cauldron, pen). It removes
+  the faint haze around the masters before scaling and any pixel under alpha 10 after scaling, so a nearly
+  invisible fringe can't catch desktop clicks. Click-through art keeps its soft edges.
+
+The props are scaled to match the upscaled characters: 1.5× for the catapult, projectile, bone, portal and pen;
+1.75× for the broom, blaster and bone hand; 2× for the cauldron. The effects in §5 are sized to the screen, not
+to a character, so they kept their sizes. The gameplay values tied to a prop's size scale with it: the
+projectile's collision radius (18 → 27), the ball's rest point in the cup (8 → 12 px below the top), the
+portal's capture radius (100 → 150) and edge inset (170 → 220), and the blaster's position (x 80 → 110) and bolt
+origin. The catapult cup lands about 4 px right of the top centre, which is close enough for the ball to sit
+in it.
 
 ## 5. Effect images (single PNG, click-through)
 

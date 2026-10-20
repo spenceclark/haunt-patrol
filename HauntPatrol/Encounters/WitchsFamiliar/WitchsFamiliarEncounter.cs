@@ -19,7 +19,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
     public const double WanderForce = 240, WanderTurn = 3;
     public const double PortalShyness = 650;  // the cat doesn't *want* to go home on its own
     public const double Damping = 1.8, MaxSpeed = 760;
-    public const double CaptureRadius = 100, Margin = 50, HudBand = 120;
+    public const double CaptureRadius = 150, Margin = 50, HudBand = 120; // capture: half the portal art (300 DIP)
     const double ChaseMemory = 1.5; // the portal only counts if the broom drove the cat there
 
     EncounterContext _c = null!;
@@ -71,7 +71,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         _c = c;
         var r = c.Random;
         var portalLeft = !c.Demo && r.Next(2) == 0;
-        _portalPos = new Point(portalLeft ? 170 : c.Width - 170, c.Height * (c.Demo ? 0.45 : 0.3 + r.NextDouble() * 0.4));
+        _portalPos = new Point(portalLeft ? 220 : c.Width - 220, c.Height * (c.Demo ? 0.45 : 0.3 + r.NextDouble() * 0.4));
         _broomPos = _lastBroomPos = new Point(portalLeft ? c.Width * 0.8 : c.Width * 0.2, c.Height * 0.62);
         var cauldronPos = new Point(c.Width * (c.Demo ? 0.5 : 0.35 + r.NextDouble() * 0.3), c.Height * 0.84);
 

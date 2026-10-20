@@ -134,7 +134,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         // Brain and blaster are never clicked: click-through layer.
         _brain = c.Spawn("brain", _brainPos.X, _brainPos.Y, onEffectsLayer: true);
         _brain.ScaleX = _brain.ScaleY = 0;
-        _blaster = c.Spawn("blaster", 80, c.Height * 0.86, onEffectsLayer: true);
+        _blaster = c.Spawn("blaster", 110, c.Height * 0.86, onEffectsLayer: true);
         _blaster.Opacity = 0;
 
         BuildThreatMeter();
@@ -387,7 +387,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
     void Zap(Zombie z, Point at)
     {
         _c.Audio.Play("zap");
-        Bolt(new Point(_blaster.X + 30, _blaster.Y - 22), at);
+        Bolt(new Point(_blaster.X + 70, _blaster.Y - 30), at); // the centre of the muzzle's mouth in the blaster art
         _blaster.Shake(0.12, 3);
         _c.Particles.Ring(at, Color.FromRgb(160, 255, 255), 45, 0.25, 4);
         _c.Particles.Burst(at, 8, Color.FromRgb(200, 255, 255), 260, 0.35, 5, 0);

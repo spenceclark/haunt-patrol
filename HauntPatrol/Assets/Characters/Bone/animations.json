@@ -1,0 +1,8 @@
+{
+  "id": "bone",
+  "width": 105, "height": 39,
+  "pivotX": 52.5, "pivotY": 19.5,
+  "animations": {
+    "idle": { "source": "idle.png", "frameWidth": 840, "frameHeight": 312, "frameCount": 1, "fps": 1, "loop": true }
+  }
+}
