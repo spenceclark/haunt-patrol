@@ -117,17 +117,18 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         _brainHealth = _o.BrainHealth;
         _brainPos = new Point(c.Width / 2, c.Height / 2);
 
-        // A soft glow behind the brain that shifts from calm purple to red with danger.
+        // A soft glow behind the brain that shifts from calm purple to red with danger. Fainter than the
+        // placeholder's (the art has its own cyan aura) and centred on the brain body, above the wispy tail.
         _glow = new Ellipse
         {
-            Width = 240,
-            Height = 200,
+            Width = 300,
+            Height = 250,
             IsHitTestVisible = false,
             Opacity = 0,
             Fill = new RadialGradientBrush { GradientStops = { _glowCore, _glowEdge } },
         };
-        Canvas.SetLeft(_glow, _brainPos.X - 120);
-        Canvas.SetTop(_glow, _brainPos.Y - 100);
+        Canvas.SetLeft(_glow, _brainPos.X - 150);
+        Canvas.SetTop(_glow, _brainPos.Y - 140);
         c.Effects.Children.Add(_glow);
 
         // Brain and blaster are never clicked: click-through layer.
@@ -201,7 +202,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         {
             _brain.ScaleX = _brain.ScaleY = Ease.OutBack(k);
             _blaster.Opacity = k;
-            _glow.Opacity = 0.6 * k;
+            _glow.Opacity = 0.4 * k;
             _meter.Opacity = k;
         }, () => _brain.BobAmplitude = 5));
         _c.After(0.6, () => _c.Banner("DEFEND THE BRAIN!", _c.Height * 0.3, 2.2, Color.FromRgb(150, 255, 90)));
@@ -353,7 +354,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
         _glowCore.Color = danger < 0.5
             ? Lerp(calm, Color.FromRgb(255, 150, 40), danger * 2)
             : Lerp(Color.FromRgb(255, 150, 40), Color.FromRgb(255, 40, 40), (danger - 0.5) * 2);
-        _glow.Opacity = 0.45 + 0.45 * danger;
+        _glow.Opacity = 0.3 + 0.4 * danger;
 
         _warningIn -= dt;
         if (critical && _warningIn <= 0)
@@ -458,7 +459,7 @@ public sealed class ZombieInvasionEncounter(ZombieInvasionOptions? options = nul
             _brainHealth = Math.Max(0, _brainHealth - 1);
             _c.Log($"zombie: {z.Kind} bit the brain, health left {_brainHealth}");
             ShowBrainHealth();
-            _brain.Play("hit");
+            _brain.Play("hit", () => { if (!_done) _brain.Play("idle"); }); // victory/failure take over once done
             _brain.Shake(0.35, 8);
             _c.Particles.Burst(_brainPos, 24, Color.FromRgb(255, 110, 150), 360, 0.6, 9);
             _c.Particles.Ring(_brainPos, Color.FromRgb(255, 80, 80), 120, 0.35, 6);

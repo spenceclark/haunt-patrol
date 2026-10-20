@@ -1,10 +1,10 @@
 {
   "id": "brain",
-  "width": 110, "height": 90,
-  "pivotX": 55, "pivotY": 45,
+  "width": 220, "height": 180,
+  "pivotX": 110, "pivotY": 90,
   "animations": {
-    "idle":    { "source": "idle.png",    "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 1, "loop": true },
-    "hit":     { "source": "hit.png",     "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 3, "loop": false },
-    "victory": { "source": "victory.png", "frameWidth": 110, "frameHeight": 90, "frameCount": 1, "fps": 1, "loop": true }
+    "idle": { "source": "idle.png", "frameWidth": 275, "frameHeight": 225, "frameCount": 36, "fps": 12, "loop": true },
+    "hit": { "source": "hit.png", "frameWidth": 275, "frameHeight": 225, "frameCount": 12, "fps": 30, "loop": false },
+    "victory": { "source": "victory.png", "frameWidth": 275, "frameHeight": 225, "frameCount": 25, "fps": 20, "loop": true }
   }
 }

@@ -304,17 +304,27 @@ scales the zombie up from its feet.
 
 ### 3.5 Brain (Zombie Invasion)
 
-`Characters/Brain/` · id `brain` · logical **110 × 90** · pivot **(55, 45)** at the centre ·
-**click-through** layer
+`Characters/Brain/` · id `brain` · logical **220 × 180** · frames **275 × 225** (1.25 px per DIP) ·
+pivot **(110, 90)** at the centre · **click-through** layer · imported with `--anchor box`
 
-| Clip | Loop | Suggested frames | Target | Used for |
+Twice the brief's 110 × 90, so the brain (body about 120 DIP across) stays in proportion with the 1.75×
+zombies. The frames are 1.25 px per DIP, like the zombies, which comes to about 18 MB once loaded.
+
+| Clip | Loop | Frames | Duration | Used for |
 |---|---|---|---|---|
-| `idle` | yes | 4–6 @ 6 fps | — | Floating and glowing |
-| `hit` | no | 2–3 | **~0.33 s** | Being bitten |
-| `victory` | yes | 2–4 @ 6 fps | — | Happy bounce when you win |
+| `idle` | yes | 36 @ 12 fps | 3.0 s | Floating; plays during the wave and again after each hit |
+| `hit` | no | 12 @ 30 fps | 0.4 s | Being bitten (all frames; 36 fps for 0.33 s felt rushed) |
+| `victory` | yes | 25 @ 20 fps | 1.25 s | Happy bounce when you win (the win sequence lasts about 0.95 s) |
 
-The danger glow behind the brain, its pulse and the health hearts are drawn in code. Draw the brain without a
-baked glow, or with a neutral one; the code tints a glow ellipse from purple to orange to red.
+The ZIPs had no timing metadata, so these frame rates are my choice. The body lines up within 1 px across
+the first frames of the three clips. The idle clip only drifts about 1.5 DIP, so the code's 5 DIP bob stays.
+
+The art has its own cyan aura. The coded danger glow behind it (purple to orange to red) is therefore
+fainter than the placeholder's: opacity 0.3–0.7, down from 0.45–0.9. It's a 300 × 250 ellipse centred on the
+brain body, above the wispy tail.
+
+Known issues: some exports touch their canvas edge (2 px), so a few aura pixels may be cut off in the
+source. The victory face reads as mild, not overjoyed.
 
 ---
 
