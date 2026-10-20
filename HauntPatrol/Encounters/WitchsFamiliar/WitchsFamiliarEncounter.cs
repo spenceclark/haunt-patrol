@@ -27,6 +27,12 @@ public sealed class WitchsFamiliarEncounter : IEncounter
     Point _catPos, _broomPos, _lastBroomPos, _portalPos;
     Vector _catVel, _grab;
     double _wander, _hissCooldown, _sinceChased = double.MaxValue;
+    bool _hissing, _running;
+
+    // Animation thresholds (presentation only). Each has a gap between "on" and "off" so a value hovering
+    // near the line can't flip the clip every frame and keep restarting it from frame 0.
+    const double HissNear = 150, HissFar = 180;   // broom distance, DIPs
+    const double RunFast = 180, RunSlow = 150;    // cat speed, DIP/s (wandering settles around 133: idle)
     bool _active, _dragging, _escaped, _done;
 
     /// <summary>One steering step: wander + flee from the broom + mild shyness of the portal, damped and capped.</summary>
@@ -144,9 +150,12 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         }
 
         _hissCooldown -= dt;
-        if (broomDistance < 150)
+        _hissing = broomDistance < (_hissing ? HissFar : HissNear);
+        var speed = _catVel.Length;
+        _running = speed > (_running ? RunSlow : RunFast);
+        if (_hissing)
         {
-            _cat.Play("hiss");
+            _cat.Play("hiss"); // takes priority over idle/run
             if (_hissCooldown <= 0)
             {
                 _c.Audio.Play("hiss");
@@ -155,9 +164,10 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         }
         else
         {
-            _cat.Play(_catVel.Length > 120 ? "run" : "idle");
+            _cat.Play(_running ? "run" : "idle"); // re-playing the current clip is a no-op, so it never restarts
         }
-        _cat.PlaybackSpeed = 0.5 + _catVel.Length / 400;
+        // The run cycle keeps pace with the cat (0.5x-2.4x); idle and hiss play at their authored rate.
+        _cat.PlaybackSpeed = !_hissing && _running ? 0.5 + speed / 400 : 1;
         if (Math.Abs(_catVel.X) > 10) _cat.FlipX = _catVel.X < 0; // art faces right
         _cat.X = _catPos.X;
         _cat.Y = _catPos.Y;

@@ -11,10 +11,16 @@
 //       --frame 220x340 --logical 110x170 --clip idle=ART-PROOF/Skeleton/Idle.zip:15:loop --clip attack=...:20:once
 //
 // Exports often differ in canvas size and character scale, so each clip is normalised by its FIRST frame
-// (assumed to be the neutral standing pose): scaled to a common standing height and anchored by that frame's
-// feet (lowest opaque row) and body centre (bounding-box centre). One transform per clip keeps the motion
-// inside the clip intact. The standing height is the largest that fits every frame of every clip inside the
-// output frame, so nothing is clipped and the scale is consistent across clips.
+// (assumed to be the same neutral pose in every clip): scaled to a common height and anchored on that frame.
+// One transform per clip keeps the motion inside the clip intact. The size is the largest that fits every
+// frame of every clip inside the output frame, so nothing is clipped and the scale is consistent across clips.
+//
+//   --anchor feet    (default) first frame's feet (lowest opaque row) and bounding-box centre; the pivot goes
+//                    at the feet, as low as the clips allow. For upright characters (skeleton, zombies).
+//   --anchor centre  first frame's paw centre (centre of the opaque pixels in its bottom rows) and vertical
+//                    centre; the pivot is the frame centre. For characters positioned by their middle (cat).
+//                    Anchoring on the paws, not the bounding box, keeps a swishing tail from shifting the body
+//                    and lets the game mirror the sprite in place.
 
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -27,6 +33,7 @@ const byte AlphaThreshold = 16;
 const int Margin = 3; // px kept clear at the frame edges
 
 string? outDir = null, id = null;
+var anchor = "feet";
 Size frame = default, logical = default;
 var clips = new List<(string Name, string Source, double Fps, bool Loop)>();
 for (var i = 0; i < args.Length; i++)
@@ -38,6 +45,7 @@ for (var i = 0; i < args.Length; i++)
         case "--id": id = Next(); break;
         case "--frame": frame = ParseSize(Next()); break;
         case "--logical": logical = ParseSize(Next()); break;
+        case "--anchor": anchor = Next(); break;
         case "--clip":
             var spec = Next();
             var eq = spec.IndexOf('=');
@@ -58,24 +66,37 @@ var loaded = clips.Select(c =>
     var frames = LoadFrames(c.Source);
     var boxes = frames.Select(Bounds).ToList();
     var first = boxes[0];
+    var centred = anchor == "centre";
     return (c.Name, c.Fps, c.Loop, Frames: frames, Boxes: boxes,
-        Height: (double)(first.Bottom - first.Top + 1), CentreX: (first.Left + first.Right) / 2.0, Ground: (double)first.Bottom);
+        Height: (double)(first.Bottom - first.Top + 1),
+        AnchorX: centred ? PawCentreX(frames[0], first) : (first.Left + first.Right) / 2.0,
+        AnchorY: centred ? (first.Top + first.Bottom + 1) / 2.0 : first.Bottom + 1.0);
 }).ToList();
 
-// Extents of every frame relative to its clip's anchor, in units of standing height.
+// Extents of every frame relative to its clip's anchor, in units of first-frame height.
 double maxSide = 0, maxAbove = 0, maxBelow = 0;
 foreach (var c in loaded)
 foreach (var b in c.Boxes)
 {
-    maxSide = Math.Max(maxSide, Math.Max(c.CentreX - b.Left, b.Right + 1 - c.CentreX) / c.Height);
-    maxAbove = Math.Max(maxAbove, (c.Ground + 1 - b.Top) / c.Height);
-    maxBelow = Math.Max(maxBelow, (b.Bottom - c.Ground) / c.Height);
+    maxSide = Math.Max(maxSide, Math.Max(c.AnchorX - b.Left, b.Right + 1 - c.AnchorX) / c.Height);
+    maxAbove = Math.Max(maxAbove, (c.AnchorY - b.Top) / c.Height);
+    maxBelow = Math.Max(maxBelow, (b.Bottom + 1 - c.AnchorY) / c.Height);
 }
-var standing = Math.Floor(Math.Min((frame.Width / 2.0 - Margin) / maxSide, (frame.Height - 2.0 * Margin) / (maxAbove + maxBelow)));
-var pivot = new PointF(frame.Width / 2f, (float)Math.Round(Margin + standing * maxAbove));
+double standing;
+PointF pivot;
+if (anchor == "centre")
+{
+    standing = Math.Floor(Math.Min((frame.Width / 2.0 - Margin) / maxSide, (frame.Height / 2.0 - Margin) / Math.Max(maxAbove, maxBelow)));
+    pivot = new PointF(frame.Width / 2f, frame.Height / 2f);
+}
+else
+{
+    standing = Math.Floor(Math.Min((frame.Width / 2.0 - Margin) / maxSide, (frame.Height - 2.0 * Margin) / (maxAbove + maxBelow)));
+    pivot = new PointF(frame.Width / 2f, (float)Math.Round(Margin + standing * maxAbove));
+}
 Console.WriteLine($"standing height {standing} px in a {frame.Width}x{frame.Height} frame; pivot ({pivot.X}, {pivot.Y}) px " +
                   $"= ({pivot.X * logical.Width / frame.Width}, {pivot.Y * logical.Height / frame.Height}) logical");
-Console.WriteLine($"limits: widest pose {maxSide * 2:0.00}x height, reach above feet {maxAbove:0.00}x, below feet {maxBelow:0.00}x");
+Console.WriteLine($"limits ({anchor} anchor): widest reach {maxSide:0.00}x height to one side, {maxAbove:0.00}x above, {maxBelow:0.00}x below");
 
 // ---- render strips -------------------------------------------------------------------------------
 Directory.CreateDirectory(outDir);
@@ -108,8 +129,8 @@ for (var ci = 0; ci < loaded.Count; ci++)
             var src = c.Frames[f];
             // Each cell is clipped to itself so a stray edge pixel can never bleed into a neighbour.
             g.SetClip(new Rectangle(f * frame.Width, 0, frame.Width, frame.Height));
-            var x = f * frame.Width + pivot.X - (float)(c.CentreX * scale);
-            var y = pivot.Y - (float)((c.Ground + 1) * scale);
+            var x = f * frame.Width + pivot.X - (float)(c.AnchorX * scale);
+            var y = pivot.Y - (float)(c.AnchorY * scale);
             g.DrawImage(src, new Rectangle((int)Math.Round(x), (int)Math.Round(y), (int)Math.Round(src.Width * scale), (int)Math.Round(src.Height * scale)),
                 0, 0, src.Width, src.Height, GraphicsUnit.Pixel, wrap);
         }
@@ -162,6 +183,21 @@ static Bitmap ToPArgb(Bitmap b)
     using (var g = Graphics.FromImage(p)) { g.CompositingMode = CompositingMode.SourceCopy; g.DrawImage(b, 0, 0, b.Width, b.Height); }
     b.Dispose();
     return p;
+}
+
+// Centre of the opaque pixels in the bottom 6% of the figure: where the feet/paws stand.
+static double PawCentreX(Bitmap bmp, Rectangle box)
+{
+    var data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    var px = new byte[data.Stride * bmp.Height];
+    Marshal.Copy(data.Scan0, px, 0, px.Length);
+    bmp.UnlockBits(data);
+    long sum = 0, n = 0;
+    var band = Math.Max(1, (box.Bottom - box.Top) * 6 / 100);
+    for (var y = box.Bottom - band; y <= box.Bottom; y++)
+    for (var x = box.Left; x <= box.Right; x++)
+        if (px[y * data.Stride + x * 4 + 3] > AlphaThreshold) { sum += x; n++; }
+    return n > 0 ? (double)sum / n : (box.Left + box.Right) / 2.0;
 }
 
 static Rectangle Bounds(Bitmap bmp)

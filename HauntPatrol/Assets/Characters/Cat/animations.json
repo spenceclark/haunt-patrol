@@ -3,8 +3,8 @@
   "width": 96, "height": 64,
   "pivotX": 48, "pivotY": 32,
   "animations": {
-    "idle": { "source": "idle.png", "frameWidth": 96, "frameHeight": 64, "frameCount": 1, "fps": 1,  "loop": true },
-    "run":  { "source": "run.png",  "frameWidth": 96, "frameHeight": 64, "frameCount": 2, "fps": 8,  "loop": true },
-    "hiss": { "source": "hiss.png", "frameWidth": 96, "frameHeight": 64, "frameCount": 1, "fps": 1,  "loop": true }
+    "idle": { "source": "idle.png", "frameWidth": 192, "frameHeight": 128, "frameCount": 42, "fps": 14, "loop": true },
+    "run": { "source": "run.png", "frameWidth": 192, "frameHeight": 128, "frameCount": 24, "fps": 36, "loop": true },
+    "hiss": { "source": "hiss.png", "frameWidth": 192, "frameHeight": 128, "frameCount": 25, "fps": 15, "loop": true }
   }
 }

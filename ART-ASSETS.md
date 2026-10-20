@@ -7,8 +7,8 @@ place, keeping its name, and the game picks it up. No code change is needed.
 > `tools/MakeAssets.cs` only writes placeholder files that don't exist yet, so it never overwrites production
 > art. `--force` regenerates every placeholder.
 
-**Production art so far:** Skeleton (all five clips, imported from Ludo exports with `tools/ImportSprite.cs`;
-see §2.7).
+**Production art so far:** Skeleton (all five clips) and Cat (all three clips), both imported from Ludo exports
+with `tools/ImportSprite.cs` (see §2.7).
 
 ---
 
@@ -138,6 +138,20 @@ dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Skeleton
 
 Each `--clip` is `name=source:fps:loop|once`.
 
+`--anchor` decides what lines up between clips:
+
+- `feet` (the default) aligns the feet. The pivot goes at the feet, as low in the frame as the clips allow.
+  Use it for upright characters such as the skeleton and zombies.
+- `centre` aligns the paws and the middle of the body. The pivot is the frame centre. Use it for characters
+  the game positions by their middle, such as the cat. Lining up on the paws, rather than the bounding box,
+  stops a swishing tail from shifting the body, and lets the game mirror the sprite in place.
+
+The cat import:
+
+```bash
+dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Cat --id cat --frame 192x128 --logical 96x64 --anchor centre --clip idle=ART-PROOF/Cat/cat_idle.zip:14:loop --clip run=ART-PROOF/Cat/cat_run.zip:36:loop --clip hiss=ART-PROOF/Cat/cat_hiss.zip:15:loop
+```
+
 Exports often differ in canvas size and character scale. The tool handles that as follows:
 
 - It treats each clip's **first frame** as the neutral standing pose. It scales the clip so the figure in that
@@ -176,13 +190,23 @@ below for the defeat bone pile) · **interactive** layer · faces right · **pro
 ### 3.2 Cat (Witch's Familiar)
 
 `Characters/Cat/` · id `cat` · logical **96 × 64** · pivot **(48, 32)** at the centre · **interactive**
-layer · faces right
+layer · faces right · **production art: done**, imported with `--anchor centre`. The cat stands about 56 DIP
+tall, including its raised tail.
 
-| Clip | Loop | Suggested frames | Used for |
+| Clip | Loop | Delivered | Used for |
 |---|---|---|---|
-| `idle` | yes | 4 @ 6 fps | Ambling slowly |
-| `run` | yes | 6 @ 12 fps | Fleeing. Playback speed scales with the cat's speed (0.5×–2.4×). |
-| `hiss` | yes | 3–4 @ 8 fps | When the broom is within ~150 DIP |
+| `idle` | yes | 42 @ 14 fps (3.0 s) | Wandering or moving slowly (below 150 DIP/s) |
+| `run` | yes | 24 @ 36 fps (0.67 s, about 3 strides) | Fleeing (above 180 DIP/s). Playback speed scales with the cat's speed, 0.5×–2.4×; idle and hiss play at 1×. |
+| `hiss` | yes | 25 @ 15 fps (1.67 s) | Broom within 150 DIP, until it's back beyond 180 DIP. Takes priority over idle and run. |
+
+- **Frame rates are starting values.** The Ludo exports carry no timing metadata, so I chose these rates. They
+  live in `animations.json`.
+- **Clips switch with a gap between "on" and "off" thresholds.** Without the gap, a speed or distance hovering
+  near a line would keep flipping clips and restarting them.
+- **Known art issues:**
+  - `idle` frames 23–24 have a tail glitch: a flat black blob, then a differently drawn swoosh.
+  - At 96 × 64 the hiss's open mouth is only a few pixels on a 1440p screen, so the hiss reads mainly through
+    the pose. If it isn't readable enough, raise the logical size, as was done for the skeleton.
 
 The game plays no separate capture or escape clips. It shrinks and spins the cat into the portal, and slides
 it off-screen when it escapes.
