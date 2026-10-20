@@ -692,6 +692,7 @@ public sealed class GhostTrapEncounter(GhostTrapOptions? options = null) : IEnco
         _drawing = _inking = false;
         HideNib();
         RemoveHead();
+        _c.Audio.Play("failure");
         _c.Audio.Play("laugh");
 
         // Whatever is still loose laughs and escapes upwards.

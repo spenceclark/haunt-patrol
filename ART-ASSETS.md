@@ -403,30 +403,63 @@ change.
 **Format: uncompressed PCM WAV, 16-bit, mono or stereo, 22.05 / 44.1 / 48 kHz.**
 
 - MP3, OGG and compressed WAV are **not** supported.
-- Some audio tools save 24-bit or 32-bit float files with a "WAVE_FORMAT_EXTENSIBLE" header. The game skips
-  those files without an error. **Export 16-bit PCM.**
-- Keep sounds short and tight at the start. Several can play at once, and replaying a sound restarts it.
+- Some audio tools save 24-bit or 32-bit float files with a "WAVE_FORMAT_EXTENSIBLE" header. The game won't
+  play those, and `--selftest` names the file. **Export 16-bit PCM.**
+- Keep sounds short and tight at the start. Several can play at once, and so can repeats of the same sound:
+  every play gets its own voice, up to 16, after which the oldest gives way.
 - Mute is handled in the app.
 
-| File | Length | Plays when |
-|---|---|---|
-| `encounter.wav` | ~0.9 s | Any encounter appears |
-| `pickup.wav` | ~0.1 s | Grabbing the projectile, broom or pen |
-| `launch.wav` | ~0.35 s | Catapult fires; the bone is thrown at the screen |
-| `impact.wav` | ~0.35 s | The skeleton is hit; a zombie bites the brain |
-| `hiss.wav` | ~0.5 s | The cat appears; the broom gets close (at most every 2 s) |
-| `success.wav` | ~0.7 s | Any victory |
-| `failure.wav` | ~0.8 s | Any failure |
-| `glass.wav` | ~0.9 s | The glass cracks |
-| `slime.wav` | ~0.7 s | The cauldron spills; the slime penalty starts |
-| `laugh.wav` | ~0.9 s | The ghost laughs (a missed loop, the split, escaping) |
-| `zap.wav` | ~0.2 s | Zapping a zombie; a loop captures a ghost |
-| `groan.wav` | ~0.9 s | Zombie warning; each zombie wave arrives |
-| `screech.wav` | ~0.5 s | A wave with a runner arrives |
-| `thud.wav` | ~0.2 s | A brute survives a hit |
-| `warning.wav` | ~0.3 s | A zombie is about to reach the brain (at most every 1.5 s) |
-| `slap.wav` | ~0.15 s | Each handprint hits the screen (7 in quick succession) |
-| `fog.wav` | ~1.2 s | The spectral fog rolls in |
+All 17 are production sounds from ElevenLabs. `tools/process-audio.sh` builds them from the masters in
+`ART-PROOF/Sound/` (48 kHz stereo 16-bit PCM, which it only reads). It trims each to a clean ending with a short
+fade, folds the effectively mono ones to mono, balances the levels and writes 44.1 kHz 16-bit PCM:
+
+```bash
+tools/process-audio.sh   # ART-PROOF/Sound -> HauntPatrol/Assets/Audio, needs ffmpeg
+```
+
+Levels are balanced on loudness rather than peak, using the loudest 400 ms with K-weighting:
+- prominent sounds at −12 LUFS
+- gameplay sounds at −15
+- fog at −16
+- slap at −19, because seven play in a row
+- pickup at −21
+
+Peaks stay under −1 dBTP for the prominent sounds and under −3 dBTP for the rest, which overlap. Glass, slime,
+impact, launch, thud and laugh are held a little under their target by that peak cap rather than being
+compressed. Many masters were already clipped at full scale (glass most of all), and the processing adds no
+further clipping.
+
+| File | Master | Final | Ch | Level | Plays when |
+|---|---|---|---|---|---|
+| `encounter.wav` | 1.00 s | 0.90 s | 2 | −15 | Any encounter appears |
+| `pickup.wav` | 1.00 s | 0.12 s | 1 | −21 | Grabbing the projectile, broom or pen |
+| `launch.wav` | 0.61 s | 0.40 s | 1 | −15.7 | Catapult fires; the bone is thrown at the screen |
+| `impact.wav` | 0.61 s | 0.40 s | 2 | −15.6 | The skeleton is hit; a zombie bites the brain |
+| `hiss.wav` | 0.69 s | 0.55 s | 2 | −15 | The cat appears; the broom gets close (each fresh hiss once the last sound has finished, 0.6 s; every 2 s during one long hiss) |
+| `success.wav` | 1.00 s | 0.70 s | 2 | −12 | Any victory |
+| `failure.wav` | 1.00 s | 0.85 s | 1 | −12 | Any failure |
+| `glass.wav` | 1.00 s | 0.90 s | 1 | −14.3 | The glass cracks |
+| `slime.wav` | 1.00 s | 0.70 s | 1 | −13.2 | The cauldron spills; the slime penalty starts |
+| `laugh.wav` | 1.00 s | 0.90 s | 1 | −16.3 | The ghost laughs (a missed loop, the split, escaping) |
+| `zap.wav` | 0.49 s | 0.22 s | 2 | −15 | Zapping a zombie; a loop captures a ghost |
+| `groan.wav` | 1.00 s | 0.92 s | 1 | −15 | Zombie warning; each zombie wave arrives |
+| `screech.wav` | 0.49 s | 0.45 s | 1 | −12 | A wave with a runner arrives |
+| `thud.wav` | 0.49 s | 0.25 s | 2 | −16.7 | A brute survives a hit |
+| `warning.wav` | 0.49 s | 0.37 s | 2 | −12 | A zombie is about to reach the brain (at most every 1.5 s) |
+| `slap.wav` | 0.49 s | 0.18 s | 2 | −19 | Each handprint hits the screen (7 in quick succession) |
+| `fog.wav` | 1.48 s | 1.25 s | 1 | −16 | The spectral fog rolls in |
+
+Level is the loudest 400 ms in LUFS.
+
+Some sounds run past their original targets to keep a natural ending:
+- **warning:** 0.37 s rather than 0.3 s. It's a sustained tone that stops at 0.36 s.
+- **zap:** 0.22 s.
+- **thud:** 0.25 s.
+- **slap:** 0.18 s.
+- **fog:** 1.25 s.
+
+Laugh drops the master's first 40 ms, a quiet breath. Every other sound starts at the master's first sample,
+with its transient intact.
 
 ---
 

@@ -26,12 +26,13 @@ public sealed class WitchsFamiliarEncounter : IEncounter
     Sprite _cat = null!, _broom = null!, _portal = null!, _cauldron = null!;
     Point _catPos, _broomPos, _lastBroomPos, _portalPos;
     Vector _catVel, _grab;
-    double _wander, _hissCooldown, _sinceChased = double.MaxValue;
-    bool _hissing, _running;
+    double _wander, _sinceHiss = double.MaxValue, _sinceChased = double.MaxValue;
+    bool _hissing, _hissHeard, _running;
 
     // Animation (presentation only). Each threshold has a gap between "on" and "off" so a value hovering
     // near the line can't flip the clip every frame and keep restarting it from frame 0.
     const double HissNear = 220, HissFar = 260;   // broom distance from the cat's centre, DIPs (~100 from its body)
+    const double HissRepeat = 2, HissGap = 0.6;   // s between hiss sounds: during one long hiss / between fresh ones (hiss.wav is 0.55 s)
     const double RunFast = 60, RunSlow = 40;      // cat speed, DIP/s: any real movement plays the run cycle
     // Ground speed the run cycle covers at 1x playback (measured from the art's planted paws: ~15 DIP per frame
     // at 36 fps). Playback = speed / this, so the paws keep pace with the ground: a slow trot while wandering,
@@ -98,6 +99,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         {
             _active = true;
             _c.Audio.Play("hiss");
+            _sinceHiss = 0;
             _c.Animate(0.35, k => _cat.ScaleX = _cat.ScaleY = Ease.OutBack(k));
         });
         _c.Animate(0.5, k => _cauldron.Opacity = k);
@@ -158,17 +160,23 @@ public sealed class WitchsFamiliarEncounter : IEncounter
             return;
         }
 
-        _hissCooldown -= dt;
+        _sinceHiss += dt;
+        var wasHissing = _hissing;
         _hissing = broomDistance < (_hissing ? HissFar : HissNear);
+        if (_hissing && !wasHissing) _hissHeard = false;
         var speed = _catVel.Length;
         _running = speed > (_running ? RunSlow : RunFast); // idle only when it has nearly stopped
         if (_hissing)
         {
             _cat.Play("hiss"); // takes priority over idle/run
-            if (_hissCooldown <= 0)
+            // Each fresh hiss (the broom comes back) is heard as soon as the last sound has finished; a hiss that
+            // goes on and on repeats only every 2 s.
+            if (_sinceHiss >= (_hissHeard ? HissRepeat : HissGap))
             {
+                _c.Log($"cat: hiss sound ({(_hissHeard ? "still hissing" : "fresh hiss")}, {_sinceHiss:0.00}s after the last)");
                 _c.Audio.Play("hiss");
-                _hissCooldown = 2;
+                _sinceHiss = 0;
+                _hissHeard = true;
             }
         }
         else
@@ -246,6 +254,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         if (!_c.Resolve(EncounterResult.Failure)) return;
         _done = true;
         _dragging = false;
+        _c.Audio.Play("failure");
         _cat.Play("run");
         var from = _catPos;
         var side = from.X < _cauldron.X ? -1 : 1;

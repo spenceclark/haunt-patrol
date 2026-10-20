@@ -133,10 +133,19 @@ static class SelfCheck
             catch (Exception ex) { failures.Add($"asset {id}: {ex.Message}"); }
         }
 
-        // Every sound parses as PCM for waveOut.
+        // Every sound the games play exists, is 16-bit PCM at a supported rate, has samples, and the audio device accepts it.
         var audioDir = System.IO.Path.Combine(SpriteAssetLoader.Root, "Audio");
-        foreach (var wav in System.IO.Directory.EnumerateFiles(audioDir, "*.wav"))
-            Check(Wave.Parse(System.IO.File.ReadAllBytes(wav)) is { Item2.Length: > 0 }, $"sound {System.IO.Path.GetFileName(wav)} parses as PCM");
+        foreach (var name in new[] { "encounter", "pickup", "launch", "impact", "hiss", "success", "failure", "glass", "slime",
+                     "laugh", "zap", "groan", "screech", "thud", "warning", "slap", "fog" })
+        {
+            var wav = System.IO.Path.Combine(audioDir, name + ".wav");
+            if (!System.IO.File.Exists(wav)) { failures.Add($"sound {name}.wav is missing"); continue; }
+            if (Wave.Parse(System.IO.File.ReadAllBytes(wav)) is not var (f, pcm)) { failures.Add($"sound {name}.wav is not a plain PCM WAV"); continue; }
+            Check(f is { BitsPerSample: 16, Channels: 1 or 2, SamplesPerSec: 22050 or 44100 or 48000 } && f.BlockAlign == f.Channels * 2,
+                $"sound {name}.wav is 16-bit mono/stereo at 22.05/44.1/48 kHz ({f.BitsPerSample}-bit, {f.Channels} ch, {f.SamplesPerSec} Hz)");
+            Check(pcm.Length >= f.BlockAlign && pcm.Length % f.BlockAlign == 0, $"sound {name}.wav has whole, non-empty sample frames");
+            Check(Wave.CanPlay(f), $"sound {name}.wav: the audio device accepts its format");
+        }
 
         // WinExe has no console; leave the verdict next to the exe.
         System.IO.File.WriteAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "selftest.log"),

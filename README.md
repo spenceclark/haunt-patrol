@@ -59,9 +59,9 @@ the actual rectangle of each overlay window and the foreground window before and
 
 All the images in `HauntPatrol/Assets` are production art. They're imported from high-resolution masters
 in `ART-PROOF/`, which is kept out of git. `tools/ImportSprite.cs` builds the character sheets and
-`tools/ImportProp.cs` sizes the props and effects; `ART-ASSETS.md` has the commands. The sounds are still
-placeholders from `tools/MakeAssets.cs`, which only writes files that are missing. Never run it with `--force`
-on production art:
+`tools/ImportProp.cs` sizes the props and effects. The sounds are production too: `tools/process-audio.sh`
+trims and balances the ElevenLabs masters. `ART-ASSETS.md` has the commands. `tools/MakeAssets.cs` only fills
+in missing placeholder files. Never run it with `--force` on production assets:
 
 ```bash
 dotnet run tools/MakeAssets.cs
@@ -76,7 +76,7 @@ dotnet run tools/MakeAssets.cs
   is their pixel size and their pivot is the centre.
 - **Sounds** (`Assets/Audio/*.wav`, uncompressed PCM): encounter, pickup, launch, impact, hiss, success, failure, glass,
   slime, laugh, zap, groan, slap, fog, screech, thud, warning. Sounds play through `waveOut` on a worker thread, preloaded, so several can
-  overlap. WPF's `MediaPlayer` was dropped because it stalled rendering by 100–500 ms per sound.
+  overlap (repeats too, up to 16 voices). WPF's `MediaPlayer` was dropped because it stalled rendering by 100–500 ms per sound.
 
 ## How it works
 
@@ -112,6 +112,7 @@ HauntPatrol/
 tools/MakeAssets.cs   placeholder art and sound generator
 tools/ImportSprite.cs character sheets from exported frames
 tools/ImportProp.cs   props and effects from single high-resolution images
+tools/process-audio.sh sound effects from the ElevenLabs masters (ffmpeg)
 ```
 
 ## Known limits

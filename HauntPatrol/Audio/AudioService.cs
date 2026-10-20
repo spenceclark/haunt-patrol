@@ -9,12 +9,16 @@ namespace HauntPatrol.Audio;
 /// Short WAV effects from Assets/Audio, played with winmm waveOut on a worker thread.
 /// WPF's MediaPlayer was measured stalling the (process-wide) render thread for 100-500 ms per open,
 /// and SoundPlayer can only play one sound at a time. Here each Play() opens its own waveOut handle
-/// on preloaded PCM, so sounds overlap (Windows mixes them) and nothing touches WPF.
+/// on preloaded PCM, so sounds overlap (Windows mixes them), repeats of one sound overlap rather than
+/// restart, and nothing touches WPF. At most <see cref="MaxVoices"/> play at once.
 /// </summary>
 public sealed class AudioService
 {
     sealed record Clip(Wave.Format Format, IntPtr Data, int Length);
     sealed record Voice(IntPtr Handle, IntPtr Header);
+
+    // Busiest moment: 7 handprint slaps plus a few gameplay sounds. Each voice is a waveOut handle.
+    const int MaxVoices = 16;
 
     readonly Dictionary<string, Clip> _clips = new(StringComparer.OrdinalIgnoreCase); // worker thread only
     readonly List<Voice> _voices = [];                                                // worker thread only
@@ -77,6 +81,13 @@ public sealed class AudioService
     void Start(string name)
     {
         if (!_clips.TryGetValue(name, out var clip)) return; // missing sounds are fine during development
+        Reap(force: false);
+        if (_voices.Count >= MaxVoices)
+        {
+            // At the cap the oldest voice gives way: the newest sound is the one that matches what's on screen.
+            Wave.waveOutReset(_voices[0].Handle);
+            Reap(force: false);
+        }
         var format = clip.Format;
         if (Wave.waveOutOpen(out var handle, Wave.WAVE_MAPPER, ref format, IntPtr.Zero, IntPtr.Zero, 0) != 0) return;
         var header = Marshal.AllocHGlobal(Wave.HeaderSize);
@@ -132,6 +143,10 @@ static class Wave
     [DllImport("winmm.dll")] public static extern int waveOutUnprepareHeader(IntPtr handle, IntPtr header, int size);
     [DllImport("winmm.dll")] public static extern int waveOutReset(IntPtr handle);
     [DllImport("winmm.dll")] public static extern int waveOutClose(IntPtr handle);
+
+    /// <summary>Asks the default output device whether it can play this format, without opening it.</summary>
+    public static bool CanPlay(Format format) => waveOutOpen(out _, WAVE_MAPPER, ref format, IntPtr.Zero, IntPtr.Zero, WAVE_FORMAT_QUERY) == 0;
+    const uint WAVE_FORMAT_QUERY = 1;
 
     /// <summary>Format and sample bytes of a RIFF/WAVE PCM file, or null.</summary>
     public static (Format, byte[])? Parse(byte[] file)
