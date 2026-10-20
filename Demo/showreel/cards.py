@@ -3,6 +3,7 @@
     python cards.py            render every card to out/<name>.mov (ProRes 4444 with alpha), 1080p60
     python cards.py title      render just one
     python cards.py preview    out/cards-preview.mp4: the cards in sequence, with the music
+    python cards.py thumbnail  out/thumbnail.jpg: the title card's last frame, 1280x720 for YouTube
 
 Times inside a card are seconds from its first frame, which the edit places on a downbeat.
 """
@@ -492,4 +493,9 @@ def preview():
 if __name__ == "__main__":
     names = sys.argv[1:] or list(CARDS)
     for name in names:
-        preview() if name == "preview" else render(name)
+        if name == "thumbnail":
+            im = title_card(2 * BAR - 1 / FPS).convert("RGB").resize((1280, 720), Image.LANCZOS)
+            im.save(OUT / "thumbnail.jpg", quality=92)
+            print("out/thumbnail.jpg")
+        else:
+            preview() if name == "preview" else render(name)
