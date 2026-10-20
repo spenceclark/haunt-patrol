@@ -46,7 +46,7 @@ public sealed class SkeletonSiegeOptions
     public double WindUpSeconds { get; init; } = 5;
 
     /// <summary>Where the hand holds the bone on the last "attack" frame: DIPs from the feet pivot, facing right.</summary>
-    public Vector BoneRelease { get; init; } = new(37, -105);
+    public Vector BoneRelease { get; init; } = new(56, -158);
     public double BoneReleaseRotation { get; init; } = 80; // the bone is held upright; bone.png is horizontal
 }
 

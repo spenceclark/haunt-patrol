@@ -1,7 +1,7 @@
 {
   "id": "skeleton",
-  "width": 110, "height": 170,
-  "pivotX": 55, "pivotY": 141,
+  "width": 165, "height": 255,
+  "pivotX": 82.5, "pivotY": 211.5,
   "animations": {
     "idle": { "source": "idle.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 36, "fps": 15, "loop": true },
     "walk": { "source": "walk.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 36, "fps": 24, "loop": true },

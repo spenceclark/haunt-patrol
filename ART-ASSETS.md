@@ -133,7 +133,7 @@ Don't bake these into the artwork. The game applies them on top of whichever fra
 come from a ZIP or a folder of PNGs, played in file-name order. The sources are only read, never changed.
 
 ```bash
-dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Skeleton --id skeleton --frame 220x340 --logical 110x170 --clip idle=ART-PROOF/Skeleton/Idle.zip:15:loop --clip walk=ART-PROOF/Skeleton/walk.zip:24:loop --clip attack=ART-PROOF/Skeleton/attack.zip:20:once --clip hit=ART-PROOF/Skeleton/hit.zip:24:once --clip defeat=ART-PROOF/Skeleton/defeat.zip:24:once
+dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Skeleton --id skeleton --frame 220x340 --logical 165x255 --clip idle=ART-PROOF/Skeleton/Idle.zip:15:loop --clip walk=ART-PROOF/Skeleton/walk.zip:24:loop --clip attack=ART-PROOF/Skeleton/attack.zip:20:once --clip hit=ART-PROOF/Skeleton/hit.zip:24:once --clip defeat=ART-PROOF/Skeleton/defeat.zip:24:once
 ```
 
 Each `--clip` is `name=source:fps:loop|once`.
@@ -148,7 +148,9 @@ Exports often differ in canvas size and character scale. The tool handles that a
 - It prints the chosen height and pivot, and writes the strips plus `animations.json`.
 
 Wide poses limit the size. For the skeleton, the defeat clip's scattered bones are 0.79× its height wide, so
-the figure stands 270 px tall in a 220 × 340 frame (about 135 DIP on screen).
+the figure stands 270 px tall in a 220 × 340 frame. The skeleton is shown at logical 165 × 255 (1.5× the
+original 110 × 170), so it stands about 200 DIP tall on screen. `--logical` only sets the display size and
+pivot; it doesn't change the rendered frames.
 
 ---
 
@@ -158,14 +160,14 @@ Suggested frame counts come from the specs. "Targets" are durations that keep th
 
 ### 3.1 Skeleton (Skeleton Siege)
 
-`Characters/Skeleton/` · id `skeleton` · logical **110 × 170** · pivot **(55, 141)** (the feet, with room
+`Characters/Skeleton/` · id `skeleton` · logical **165 × 255** (scaled up 1.5× from 110 × 170) · pivot **(82.5, 211.5)** (the feet, with room
 below for the defeat bone pile) · **interactive** layer · faces right · **production art: done**
 
 | Clip | Loop | Delivered | Used for |
 |---|---|---|---|
 | `idle` | yes | 36 @ 15 fps (2.4 s) | Before it starts walking; the pause at each end of its patrol; just after the throw |
 | `walk` | yes | 36 @ 24 fps (1.5 s) | Patrolling at 90 DIP/s |
-| `attack` | no | 16 @ 20 fps (0.8 s) | Wind-up and throw when you fail. On the last frame the flying bone is spawned **at the hand** (`SkeletonSiegeOptions.BoneRelease`: +37, −105 DIP from the feet, held upright), and the skeleton switches to `idle`. |
+| `attack` | no | 16 @ 20 fps (0.8 s) | Wind-up and throw when you fail. On the last frame the flying bone is spawned **at the hand** (`SkeletonSiegeOptions.BoneRelease`: +56, −158 DIP from the feet, held upright), and the skeleton switches to `idle`. |
 | `hit` | no | 16 @ 24 fps (0.67 s) | **Not played yet.** Kept for a future non-lethal hit. It ends crouched, so it doesn't lead into `defeat`. |
 | `defeat` | no | 25 @ 24 fps (1.04 s) | The killing shot: its own impact reaction, then crumbling to a bone pile. The code then fades it out. |
 
