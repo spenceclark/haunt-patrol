@@ -49,4 +49,5 @@ Thumbs.db
 
 
 # Raw screen recordings (too big for GitHub); commit the compressed demo instead
-Demo/Recording*.mp4
+Demo/*.mp4
+ART-PROOF/
