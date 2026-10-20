@@ -4,8 +4,11 @@ This is everything the final game needs from an artist or sound designer, and th
 loads. Every asset listed here already exists as a placeholder in `HauntPatrol/Assets`. Replace each file in
 place, keeping its name, and the game picks it up. No code change is needed.
 
-> **Warning:** `tools/MakeAssets.cs` regenerates the placeholders and **overwrites** `HauntPatrol/Assets`.
-> Don't run it after production art has been dropped in.
+> `tools/MakeAssets.cs` only writes placeholder files that don't exist yet, so it never overwrites production
+> art. `--force` regenerates every placeholder.
+
+**Production art so far:** Skeleton (all five clips, imported from Ludo exports with `tools/ImportSprite.cs`;
+see §2.7).
 
 ---
 
@@ -14,7 +17,7 @@ place, keeping its name, and the game picks it up. No code change is needed.
 | Kind | Count | Notes |
 |---|---:|---|
 | Animated characters | 7 | Skeleton, Cat, Ghost, Zombie, Brute, Runner, Brain |
-| Animation clips | 20 | All played by the game. Optional extras (a skeleton `walk`, a zombie `emerge`) are noted in §3. |
+| Animation clips | 21 | 20 are played by the game; the skeleton's `hit` is kept for later. A zombie `emerge` is an optional extra (§3). |
 | Static props | 9 | catapult, projectile, bone, broom, portal, cauldron, pen, blaster, bonehand |
 | Effect images | 3 | slime splat, zombie handprint, ghost face |
 | Sound effects | 17 | Short WAVs |
@@ -124,6 +127,29 @@ Don't bake these into the artwork. The game applies them on top of whichever fra
 - fades, and shrinking for captures and deaths
 - the rise out of the ground (a vertical scale from the feet)
 
+### 2.7 Importing exported frames (Ludo and similar)
+
+`tools/ImportSprite.cs` turns exported frames into a character folder in this format. Each clip's frames can
+come from a ZIP or a folder of PNGs, played in file-name order. The sources are only read, never changed.
+
+```bash
+dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Skeleton --id skeleton --frame 220x340 --logical 110x170 --clip idle=ART-PROOF/Skeleton/Idle.zip:15:loop --clip walk=ART-PROOF/Skeleton/walk.zip:24:loop --clip attack=ART-PROOF/Skeleton/attack.zip:20:once --clip hit=ART-PROOF/Skeleton/hit.zip:24:once --clip defeat=ART-PROOF/Skeleton/defeat.zip:24:once
+```
+
+Each `--clip` is `name=source:fps:loop|once`.
+
+Exports often differ in canvas size and character scale. The tool handles that as follows:
+
+- It treats each clip's **first frame** as the neutral standing pose. It scales the clip so the figure in that
+  frame has the same height in every clip, and anchors it by that frame's feet and body centre.
+- It applies one transform per clip, so movement within a clip (bobs, recoil, falls) is preserved.
+- It picks the largest standing height at which **every frame of every clip** fits the output frame without
+  clipping, and sets the pivot to match.
+- It prints the chosen height and pivot, and writes the strips plus `animations.json`.
+
+Wide poses limit the size. For the skeleton, the defeat clip's scattered bones are 0.79× its height wide, so
+the figure stands 270 px tall in a 220 × 340 frame (about 135 DIP on screen).
+
 ---
 
 ## 3. Characters
@@ -132,19 +158,18 @@ Suggested frame counts come from the specs. "Targets" are durations that keep th
 
 ### 3.1 Skeleton (Skeleton Siege)
 
-`Characters/Skeleton/` · id `skeleton` · logical **110 × 170** · pivot **(55, 170)** at the feet ·
-**interactive** layer · faces right
+`Characters/Skeleton/` · id `skeleton` · logical **110 × 170** · pivot **(55, 141)** (the feet, with room
+below for the defeat bone pile) · **interactive** layer · faces right · **production art: done**
 
-| Clip | Loop | Suggested frames | Target | Used for |
-|---|---|---|---|---|
-| `idle` | yes | 4–6 @ 6–8 fps | — | Standing; currently also played while patrolling |
-| `walk` | yes | 6–8 @ 10 fps | — | **Optional.** See the gap below. |
-| `attack` | no | 4–6 | **~0.4 s** | Wind-up and throw when you fail. At the end, a bone appears at ~75% of its height and flies at the screen. |
-| `hit` | no | 2–3 | **~0.25 s** | The moment the projectile connects |
-| `defeat` | no | 4–6 | **~0.4 s** | Collapse. Afterwards the code fades it, squashes it 70% and tilts it 25°. |
+| Clip | Loop | Delivered | Used for |
+|---|---|---|---|
+| `idle` | yes | 36 @ 15 fps (2.4 s) | Before it starts walking; the pause at each end of its patrol; just after the throw |
+| `walk` | yes | 36 @ 24 fps (1.5 s) | Patrolling at 90 DIP/s |
+| `attack` | no | 16 @ 20 fps (0.8 s) | Wind-up and throw when you fail. On the last frame the flying bone is spawned **at the hand** (`SkeletonSiegeOptions.BoneRelease`: +37, −105 DIP from the feet, held upright), and the skeleton switches to `idle`. |
+| `hit` | no | 16 @ 24 fps (0.67 s) | **Not played yet.** Kept for a future non-lethal hit. It ends crouched, so it doesn't lead into `defeat`. |
+| `defeat` | no | 25 @ 24 fps (1.04 s) | The killing shot: its own impact reaction, then crumbling to a bone pile. The code then fades it out. |
 
-> **Gap:** the skeleton patrols, but the code plays `idle` while it walks. To use a `walk` clip, the code
-> needs a one-line change: play `walk` while moving and `idle` during the brief pause at each turn.
+> If the throw is re-exported, re-measure `BoneRelease`.
 
 ### 3.2 Cat (Witch's Familiar)
 

@@ -44,6 +44,10 @@ public sealed class SkeletonSiegeOptions
     public double HitPadding { get; init; } = 30;    // generous on purpose
     public double PreviewSeconds { get; init; } = 0.9; // only part of the arc, so aiming still takes skill
     public double WindUpSeconds { get; init; } = 5;
+
+    /// <summary>Where the hand holds the bone on the last "attack" frame: DIPs from the feet pivot, facing right.</summary>
+    public Vector BoneRelease { get; init; } = new(37, -105);
+    public double BoneReleaseRotation { get; init; } = 80; // the bone is held upright; bone.png is horizontal
 }
 
 /// <summary>
@@ -155,11 +159,7 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
         {
             _skeleton.ScaleY = Ease.OutBack(k);
             _skeleton.Opacity = Math.Min(1, k * 2);
-        }, () =>
-        {
-            _skeleton.BobAmplitude = 3;
-            _patrolling = true; // starts walking once it has risen
-        });
+        }, () => _patrolling = true); // starts walking once it has risen
 
         _c.After(0.35, () => _c.Animate(0.4, k =>
         {
@@ -258,6 +258,7 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
             (_skeleton.X, _dir, _turnPause) = PatrolStep(_skeleton.X, _dir, _turnPause, dt, _patrolMin, _patrolMax, _o.PatrolSpeed, _o.TurnPause);
             if (!wasPaused && _turnPause > 0) _skeleton.Shake(_o.TurnPause, 3); // taunt at the turn
             _skeleton.FlipX = _dir < 0;
+            _skeleton.Play(_turnPause > 0 ? "idle" : "walk"); // no-op while the clip is already playing
         }
 
         // Winding up: the skeleton trembles harder as time runs out.
@@ -325,24 +326,24 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
         _phase = Phase.Done; // stops the patrol and the ball
         _ball.Opacity = 0;
         _skeleton.ShakeAmount = 0;
-        _skeleton.BobAmplitude = 0;
         var centre = _skeleton.Center;
         _c.Audio.Play("impact");
         _c.Particles.Ring(centre, Colors.White, 170, 0.5);
         _c.Particles.Burst(centre, 40, Color.FromRgb(240, 234, 214), 560, 0.9, 10);
         _c.Particles.Burst(centre, 16, Colors.Gold, 300, 0.6, 6);
         _skeleton.Shake(0.4, 8);
-        _skeleton.Play("hit", () => _skeleton.Play("defeat", () =>
+        // The killing shot plays "defeat" straight away: it has its own impact reaction, and "hit" ends in a
+        // crouch that doesn't lead into it. "hit" is kept for a non-lethal reaction later.
+        _skeleton.Play("defeat", () =>
         {
             _c.Audio.Play("success");
+            // The defeat clip ends as a bone pile; just fade it and the props.
             _c.Animate(0.5, k =>
             {
                 _skeleton.Opacity = _catapult.Opacity = 1 - k;
                 foreach (var pip in _ammoPips) pip.Opacity = Math.Min(pip.Opacity, 1 - k);
-                _skeleton.ScaleY = 1 - 0.7 * k;
-                _skeleton.Rotation = (_skeleton.FlipX ? 1 : -1) * 25 * k;
             }, _c.Complete);
-        }));
+        });
     }
 
     void Fail()
@@ -355,8 +356,11 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
         _c.Audio.Play("failure");
         _skeleton.Play("attack", () =>
         {
+            // Released from the hand on the throw's last frame; the skeleton is empty-handed again.
             // The bone flies "out of the screen" towards the viewer and smacks into the glass.
-            var from = new Point(_skeleton.X, _skeleton.Y - _skeleton.Height * 0.75);
+            var facing = _skeleton.FlipX ? -1 : 1;
+            var from = new Point(_skeleton.X + facing * _o.BoneRelease.X, _skeleton.Y + _o.BoneRelease.Y);
+            _skeleton.Play("idle");
             var target = _c.Demo
                 ? new Point(_c.Width / 2, _c.Height / 2)
                 : new Point(_c.Width * (0.35 + _c.Random.NextDouble() * 0.3), _c.Height * (0.3 + _c.Random.NextDouble() * 0.3));
@@ -369,7 +373,7 @@ public sealed class SkeletonSiegeEncounter(SkeletonSiegeOptions? options = null)
                 bone.X = pos.X;
                 bone.Y = pos.Y - Math.Sin(k * Math.PI) * 140;
                 bone.ScaleX = bone.ScaleY = 1 + 9 * e;
-                bone.Rotation = 900 * k;
+                bone.Rotation = facing * (_o.BoneReleaseRotation + 900 * k);
             }, () =>
             {
                 bone.Opacity = 0;

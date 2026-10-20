@@ -6,19 +6,29 @@
 
 // Generates the placeholder art and sound effects in HauntPatrol/Assets.
 // Run from the repo root:  dotnet run tools/MakeAssets.cs
-// Production art replaces these files in place: same ids, logical sizes and pivots (see animations.json).
+// Files that already exist are kept, so production art dropped in place is never overwritten.
+// Pass --force to regenerate every placeholder anyway.
 
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
-var root = Path.GetFullPath(Path.Combine(args.Length > 0 ? args[0] : ".", "HauntPatrol", "Assets"));
+var force = args.Contains("--force");
+var root = Path.GetFullPath(Path.Combine(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".", "HauntPatrol", "Assets"));
 Directory.CreateDirectory(root);
+
+bool Keep(string relative)
+{
+    if (force || !File.Exists(Path.Combine(root, relative))) return false;
+    Console.WriteLine($"  kept {relative}");
+    return true;
+}
 
 // ---------------------------------------------------------------- images
 
 void Png(string relative, int w, int h, int frames, Action<Graphics, int> draw)
 {
+    if (Keep(relative)) return;
     using var bmp = new Bitmap(w * frames, h, PixelFormat.Format32bppArgb);
     bmp.SetResolution(96, 96);
     using (var g = Graphics.FromImage(bmp))
@@ -41,6 +51,7 @@ void Png(string relative, int w, int h, int frames, Action<Graphics, int> draw)
 
 void Json(string relative, string text)
 {
+    if (Keep(relative)) return;
     File.WriteAllText(Path.Combine(root, relative), text);
     Console.WriteLine($"  {relative}");
 }
@@ -375,7 +386,9 @@ void Wav(string name, double seconds, Func<double, double> sample)
     var n = (int)(seconds * Rate);
     var path = Path.Combine(root, "Audio", name + ".wav");
     Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-    using var w = new BinaryWriter(File.Create(path));
+    var keep = Keep(Path.Combine("Audio", name + ".wav"));
+    // Samples are always generated (so the shared noise sequence stays the same) but only written if new.
+    using var w = new BinaryWriter(keep ? Stream.Null : File.Create(path));
     w.Write("RIFF"u8); w.Write(36 + n * 2); w.Write("WAVE"u8);
     w.Write("fmt "u8); w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(Rate); w.Write(Rate * 2); w.Write((short)2); w.Write((short)16);
     w.Write("data"u8); w.Write(n * 2);
@@ -385,7 +398,7 @@ void Wav(string name, double seconds, Func<double, double> sample)
         var fade = Math.Min(1, Math.Min(t / 0.005, (seconds - t) / 0.02)); // no clicks
         w.Write((short)(Math.Clamp(sample(t) * fade, -1, 1) * 0.6 * short.MaxValue));
     }
-    Console.WriteLine($"  Audio/{name}.wav");
+    if (!keep) Console.WriteLine($"  Audio/{name}.wav");
 }
 
 double Sine(double f, double t) => Math.Sin(2 * Math.PI * f * t);

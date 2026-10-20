@@ -1,11 +1,12 @@
 {
   "id": "skeleton",
   "width": 110, "height": 170,
-  "pivotX": 55, "pivotY": 170,
+  "pivotX": 55, "pivotY": 141,
   "animations": {
-    "idle":   { "source": "idle.png",   "frameWidth": 110, "frameHeight": 170, "frameCount": 2, "fps": 3,   "loop": true },
-    "attack": { "source": "attack.png", "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 2.5, "loop": false },
-    "hit":    { "source": "hit.png",    "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 4,   "loop": false },
-    "defeat": { "source": "defeat.png", "frameWidth": 110, "frameHeight": 170, "frameCount": 1, "fps": 2.5, "loop": false }
+    "idle": { "source": "idle.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 36, "fps": 15, "loop": true },
+    "walk": { "source": "walk.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 36, "fps": 24, "loop": true },
+    "attack": { "source": "attack.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 16, "fps": 20, "loop": false },
+    "hit": { "source": "hit.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 16, "fps": 24, "loop": false },
+    "defeat": { "source": "defeat.png", "frameWidth": 220, "frameHeight": 340, "frameCount": 25, "fps": 24, "loop": false }
   }
 }
