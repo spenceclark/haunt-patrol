@@ -102,6 +102,18 @@ static class SelfCheck
         Check(ZombieInvasionEncounter.ThreatFor(1.0) >= 70 && ZombieInvasionEncounter.ThreatFor(8) < 30, "threat: near is critical, far is safe");
         Check(ZombieInvasionEncounter.CombinedThreat([1.0, 7, 8]) > ZombieInvasionEncounter.CombinedThreat([7, 8]), "killing the closest zombie lowers the threat");
 
+        // Silhouette glow: nothing over the sprite itself, a rim just outside it, fading to nothing.
+        var glowOptions = new GlowOptions();
+        var square = new float[40 * 40];
+        for (var y = 10; y < 30; y++) for (var x = 10; x < 30; x++) square[y * 40 + x] = 1;
+        var halo = SpriteGlow.Halo(square, 40, 40, glowOptions, out var hw, out _);
+        var hp = SpriteGlow.Padding(glowOptions);
+        byte HaloAlpha(int x, int y) => halo[((y + hp) * hw + x + hp) * 4 + 3];
+        Check(HaloAlpha(20, 20) == 0, "glow never covers the sprite's own pixels");
+        Check(HaloAlpha(31, 20) >= 100, $"crisp rim just outside the silhouette ({HaloAlpha(31, 20)})");
+        Check(HaloAlpha(36, 20) is > 0 and < 100, $"soft glow further out ({HaloAlpha(36, 20)})");
+        Check(HaloAlpha(29 + hp, 20) < 8, $"glow fades out within its padding ({HaloAlpha(29 + hp, 20)})");
+
         // Exactly-once resolution and completion.
         var completions = 0;
         var ctx = new EncounterContext(new Canvas(), new Canvas(), new Size(800, 600), new SpriteAssetLoader(), new AudioService(),

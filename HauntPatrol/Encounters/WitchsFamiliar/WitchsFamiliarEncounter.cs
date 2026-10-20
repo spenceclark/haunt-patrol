@@ -29,10 +29,18 @@ public sealed class WitchsFamiliarEncounter : IEncounter
     double _wander, _hissCooldown, _sinceChased = double.MaxValue;
     bool _hissing, _running;
 
-    // Animation thresholds (presentation only). Each has a gap between "on" and "off" so a value hovering
+    // Animation (presentation only). Each threshold has a gap between "on" and "off" so a value hovering
     // near the line can't flip the clip every frame and keep restarting it from frame 0.
-    const double HissNear = 150, HissFar = 180;   // broom distance, DIPs
-    const double RunFast = 180, RunSlow = 150;    // cat speed, DIP/s (wandering settles around 133: idle)
+    const double HissNear = 220, HissFar = 260;   // broom distance from the cat's centre, DIPs (~100 from its body)
+    const double RunFast = 60, RunSlow = 40;      // cat speed, DIP/s: any real movement plays the run cycle
+    // Ground speed the run cycle covers at 1x playback (measured from the art's planted paws: ~15 DIP per frame
+    // at 36 fps). Playback = speed / this, so the paws keep pace with the ground: a slow trot while wandering,
+    // a sprint when fleeing. Raise it if the feet look like they lag the ground, lower it if they outrun it.
+    const double RunStrideSpeed = 540;
+    const double MinRunPlayback = 0.25, MaxRunPlayback = 2.4;
+
+    /// <summary>Violet edge-light so the black cat reads against dark desktops (click-through layer only).</summary>
+    static readonly GlowOptions CatGlow = new();
     bool _active, _dragging, _escaped, _done;
 
     /// <summary>One steering step: wander + flee from the broom + mild shyness of the portal, damped and capped.</summary>
@@ -71,6 +79,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         _cauldron = c.Spawn("cauldron", cauldronPos.X, cauldronPos.Y);
         _broom = c.Spawn("broom", _broomPos.X, _broomPos.Y);
         _cat = c.Spawn("cat", _portalPos.X, _portalPos.Y);
+        _cat.AttachGlow(c.Effects, CatGlow);
 
         _catPos = _portalPos;
         _wander = portalLeft ? 0 : Math.PI; // head into the screen
@@ -152,7 +161,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         _hissCooldown -= dt;
         _hissing = broomDistance < (_hissing ? HissFar : HissNear);
         var speed = _catVel.Length;
-        _running = speed > (_running ? RunSlow : RunFast);
+        _running = speed > (_running ? RunSlow : RunFast); // idle only when it has nearly stopped
         if (_hissing)
         {
             _cat.Play("hiss"); // takes priority over idle/run
@@ -166,8 +175,8 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         {
             _cat.Play(_running ? "run" : "idle"); // re-playing the current clip is a no-op, so it never restarts
         }
-        // The run cycle keeps pace with the cat (0.5x-2.4x); idle and hiss play at their authored rate.
-        _cat.PlaybackSpeed = !_hissing && _running ? 0.5 + speed / 400 : 1;
+        // The run cycle keeps pace with the cat; idle and hiss play at their authored rate.
+        _cat.PlaybackSpeed = !_hissing && _running ? Math.Clamp(speed / RunStrideSpeed, MinRunPlayback, MaxRunPlayback) : 1;
         if (Math.Abs(_catVel.X) > 10) _cat.FlipX = _catVel.X < 0; // art faces right
         _cat.X = _catPos.X;
         _cat.Y = _catPos.Y;
@@ -188,7 +197,9 @@ public sealed class WitchsFamiliarEncounter : IEncounter
 
     void KeepCatOnScreen()
     {
-        double minX = Margin, maxX = _c.Width - Margin, minY = Margin + HudBand, maxY = _c.Height - Margin;
+        // Keep the whole sprite visible: at least Margin, or half the cat, from each edge.
+        double halfW = Math.Max(Margin, _cat.Width / 2), halfH = Math.Max(Margin, _cat.Height / 2);
+        double minX = halfW, maxX = _c.Width - halfW, minY = halfH + HudBand, maxY = _c.Height - halfH;
         if (_catPos.X < minX || _catPos.X > maxX)
         {
             _catPos.X = Math.Clamp(_catPos.X, minX, maxX);
@@ -238,7 +249,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
         _cat.Play("run");
         var from = _catPos;
         var side = from.X < _cauldron.X ? -1 : 1;
-        var bump = new Point(_cauldron.X + side * _cauldron.Width * 0.55, _cauldron.Y);
+        var bump = new Point(_cauldron.X + side * (_cauldron.Width / 2 + _cat.Width * 0.3), _cauldron.Y - _cat.Height * 0.15);
         _cat.FlipX = side > 0;
         _c.Animate(0.5, k =>
         {
@@ -252,7 +263,7 @@ public sealed class WitchsFamiliarEncounter : IEncounter
             _c.Particles.Burst(lip, 50, Color.FromRgb(110, 230, 40), 650, 1.0, 14);
             _c.Animate(0.25, k => _cauldron.Rotation = -side * 100 * Ease.OutCubic(k));
             _c.ImpactPoint = lip;
-            var exitX = side < 0 ? -150 : _c.Width + 150;
+            var exitX = side < 0 ? -_cat.Width : _c.Width + _cat.Width;
             _cat.FlipX = side < 0;
             _c.Animate(0.7, k => _cat.X = Ease.Lerp(bump.X, exitX, Ease.InQuad(k)), _c.Complete);
         });

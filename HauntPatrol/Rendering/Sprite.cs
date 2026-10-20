@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace HauntPatrol.Rendering;
 
@@ -35,6 +36,10 @@ public sealed class Sprite
     readonly RotateTransform _rotate = new();
     readonly TranslateTransform _translate = new();
 
+    Image? _glow;
+    GlowOptions? _glowOptions;
+    ImageSource? _glowFrame;
+
     public Sprite(SpriteDefinition definition)
     {
         Definition = definition;
@@ -60,6 +65,40 @@ public sealed class Sprite
         _holdLastFrame = false;
         _onComplete = onComplete;
         Element.Source = _clip.Frames[0];
+    }
+
+    /// <summary>
+    /// Add a silhouette edge-light on <paramref name="layer"/> (normally the click-through layer, so it never
+    /// catches the mouse). It shares this sprite's transform, so it follows every move, flip, spin and scale,
+    /// and tracks the current animation frame.
+    /// </summary>
+    public void AttachGlow(Panel layer, GlowOptions options)
+    {
+        if (!options.Enabled || _glow != null) return;
+        var pad = SpriteGlow.Padding(options);
+        _glowOptions = options;
+        _glow = new Image
+        {
+            Width = Width + 2 * pad,
+            Height = Height + 2 * pad,
+            Stretch = Stretch.Fill,
+            IsHitTestVisible = false,
+            Focusable = false,
+            RenderTransform = new TransformGroup { Children = { new TranslateTransform(-pad, -pad), Element.RenderTransform } },
+        };
+        layer.Children.Add(_glow);
+        SyncGlow();
+    }
+
+    void SyncGlow()
+    {
+        if (_glow == null) return;
+        if (!ReferenceEquals(_glowFrame, Element.Source) && Element.Source is BitmapSource frame)
+        {
+            _glowFrame = frame;
+            _glow.Source = SpriteGlow.For(frame, Width, Height, _glowOptions!); // cached per frame
+        }
+        _glow.Opacity = Opacity;
     }
 
     public void Shake(double seconds, double amount)
@@ -118,6 +157,7 @@ public sealed class Sprite
         _translate.X = X - Definition.Pivot.X + ox;
         _translate.Y = Y - Definition.Pivot.Y + oy;
         Element.Opacity = Opacity;
+        SyncGlow();
     }
 }
 

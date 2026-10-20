@@ -149,7 +149,7 @@ Each `--clip` is `name=source:fps:loop|once`.
 The cat import:
 
 ```bash
-dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Cat --id cat --frame 192x128 --logical 96x64 --anchor centre --clip idle=ART-PROOF/Cat/cat_idle.zip:14:loop --clip run=ART-PROOF/Cat/cat_run.zip:36:loop --clip hiss=ART-PROOF/Cat/cat_hiss.zip:15:loop
+dotnet run tools/ImportSprite.cs -- --out HauntPatrol/Assets/Characters/Cat --id cat --frame 360x240 --logical 240x160 --anchor centre --clip idle=ART-PROOF/Cat/cat_idle.zip:14:loop --clip run=ART-PROOF/Cat/cat_run.zip:36:loop --clip hiss=ART-PROOF/Cat/cat_hiss.zip:15:loop
 ```
 
 Exports often differ in canvas size and character scale. The tool handles that as follows:
@@ -189,24 +189,35 @@ below for the defeat bone pile) · **interactive** layer · faces right · **pro
 
 ### 3.2 Cat (Witch's Familiar)
 
-`Characters/Cat/` · id `cat` · logical **96 × 64** · pivot **(48, 32)** at the centre · **interactive**
-layer · faces right · **production art: done**, imported with `--anchor centre`. The cat stands about 56 DIP
-tall, including its raised tail.
+`Characters/Cat/` · id `cat` · logical **240 × 160** (2.5× the original 96 × 64) · pivot **(120, 80)** at
+the centre · **interactive** layer · faces right · **production art: done**, imported with `--anchor centre`
+into 360 × 240 frames (1.5 px per DIP). The cat stands about 142 DIP tall, including its raised tail. The game
+keeps the whole sprite on screen, at least half its size from each edge.
 
 | Clip | Loop | Delivered | Used for |
 |---|---|---|---|
-| `idle` | yes | 42 @ 14 fps (3.0 s) | Wandering or moving slowly (below 150 DIP/s) |
-| `run` | yes | 24 @ 36 fps (0.67 s, about 3 strides) | Fleeing (above 180 DIP/s). Playback speed scales with the cat's speed, 0.5×–2.4×; idle and hiss play at 1×. |
-| `hiss` | yes | 25 @ 15 fps (1.67 s) | Broom within 150 DIP, until it's back beyond 180 DIP. Takes priority over idle and run. |
+| `idle` | yes | 42 @ 14 fps (3.0 s) | Nearly stopped (below 40 DIP/s) |
+| `run` | yes | 24 @ 36 fps (0.67 s, about 3 strides) | Any real movement (above 60 DIP/s): a slow trot while wandering, a sprint when fleeing. Playback rate = speed ÷ 540 DIP/s, clamped to 0.25×–2.4×, so the paws keep pace with the ground. |
+| `hiss` | yes | 25 @ 15 fps (1.67 s) | Broom within 220 DIP of the cat's centre (about 100 DIP from its body), until it's back beyond 260 DIP. Takes priority over idle and run. |
 
 - **Frame rates are starting values.** The Ludo exports carry no timing metadata, so I chose these rates. They
   live in `animations.json`.
+- **540 DIP/s is how much ground one run cycle covers at 1× playback.** It was measured from the planted paws.
+  If the feet look like they lag behind the ground, raise `RunStrideSpeed` in `WitchsFamiliarEncounter`; if
+  they outrun it, lower it.
 - **Clips switch with a gap between "on" and "off" thresholds.** Without the gap, a speed or distance hovering
   near a line would keep flipping clips and restarting them.
 - **Known art issues:**
   - `idle` frames 23–24 have a tail glitch: a flat black blob, then a differently drawn swoosh.
-  - At 96 × 64 the hiss's open mouth is only a few pixels on a 1440p screen, so the hiss reads mainly through
-    the pose. If it isn't readable enough, raise the logical size, as was done for the skeleton.
+  - The hiss is now 2.5× larger. Check by eye that the open mouth reads clearly.
+- **Violet edge glow, drawn by the game.** The glow is drawn in code, so don't bake it into the art.
+  - It's built from each frame's alpha: a 2.5 DIP rim at 50% opacity, plus an 8 DIP soft glow at 30%, in
+    `#A779E8`.
+  - Each glow frame is built once and cached.
+  - It's drawn on the click-through layer with the sprite's own pixels cut out, so it never covers the cat or
+    enlarges its hitbox, and it follows every move, flip and the portal capture.
+  - Any character can use it: `Sprite.AttachGlow(layer, new GlowOptions { ... })`. It's currently enabled only
+    for the cat.
 
 The game plays no separate capture or escape clips. It shrinks and spins the cat into the portal, and slides
 it off-screen when it escapes.
@@ -300,6 +311,7 @@ change.
 - **Zombie infection:** mould creeping in from the edges, crawling bugs (the hands use `handprint.png`)
 - **Encounter effects:** aim arc and catapult band, projectile trail, magic pen trail, lightning bolts,
   ground crack, particles and rings, the brain's danger glow, health hearts
+- **Character glow:** `Rendering/SpriteGlow.cs` builds silhouette edge-lights from sprite frames (§3.2).
 - **Interface:** HUD, banners, popups ("MISS!", "1 REMAINING"), threat meter. These are WPF text and shapes.
   Fonts and colours can be changed in code.
 
