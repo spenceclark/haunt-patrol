@@ -20,6 +20,16 @@ system is changed.
 Gameplay tuning (speeds, ammo, waves, loop sizes) lives in `SkeletonSiegeOptions`, `GhostTrapOptions` and
 `ZombieInvasionOptions`, next to each encounter.
 
+## Download
+
+Get `HauntPatrol-<version>-win-x64.zip` from the [Releases page](https://github.com/spenceclark/haunt-patrol/releases).
+It runs on 64-bit Windows 10/11 and doesn't need .NET installed. Unzip it and run `HauntPatrol.exe`, keeping the
+`Assets` folder next to it. The exe isn't signed, so Windows SmartScreen may warn on first launch: click
+**More info → Run anyway**.
+
+Releases are built by `.github/workflows/release.yml` whenever a `v*` tag is pushed. The workflow runs `--selftest` on the
+published exe before attaching the zip.
+
 ## Build and run
 
 Requirements: Windows 10/11 and the .NET 10 SDK.

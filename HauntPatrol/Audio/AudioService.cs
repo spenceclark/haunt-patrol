@@ -143,6 +143,7 @@ static class Wave
     [DllImport("winmm.dll")] public static extern int waveOutUnprepareHeader(IntPtr handle, IntPtr header, int size);
     [DllImport("winmm.dll")] public static extern int waveOutReset(IntPtr handle);
     [DllImport("winmm.dll")] public static extern int waveOutClose(IntPtr handle);
+    [DllImport("winmm.dll")] public static extern uint waveOutGetNumDevs();
 
     /// <summary>Asks the default output device whether it can play this format, without opening it.</summary>
     public static bool CanPlay(Format format) => waveOutOpen(out _, WAVE_MAPPER, ref format, IntPtr.Zero, IntPtr.Zero, WAVE_FORMAT_QUERY) == 0;

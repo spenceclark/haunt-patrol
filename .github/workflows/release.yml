@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # One self-contained exe; Assets/ stays on disk next to it (ExcludeFromSingleFile in the csproj).
+      - name: Publish
+        run: dotnet publish HauntPatrol/HauntPatrol.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      # WinExe has no console: wait for the process, then surface selftest.log and its exit code.
+      - name: Self-test
+        timeout-minutes: 5
+        run: |
+          $p = Start-Process publish/HauntPatrol.exe -ArgumentList '--selftest' -Wait -PassThru
+          Get-Content publish/selftest.log
+          exit $p.ExitCode
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: selftest-log
+          path: publish/selftest.log
+
+      - name: Package
+        run: Compress-Archive -Path publish/HauntPatrol.exe, publish/Assets -DestinationPath HauntPatrol-${{ github.ref_name }}-win-x64.zip
+
+      # Manual runs: download the build from the run page instead of releasing.
+      - uses: actions/upload-artifact@v7
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        with:
+          name: HauntPatrol-win-x64
+          path: |
+            publish/HauntPatrol.exe
+            publish/Assets
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME HauntPatrol-${{ github.ref_name }}-win-x64.zip --title "Haunt Patrol $env:GITHUB_REF_NAME" --generate-notes

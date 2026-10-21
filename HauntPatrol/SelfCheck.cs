@@ -144,7 +144,8 @@ static class SelfCheck
             Check(f is { BitsPerSample: 16, Channels: 1 or 2, SamplesPerSec: 22050 or 44100 or 48000 } && f.BlockAlign == f.Channels * 2,
                 $"sound {name}.wav is 16-bit mono/stereo at 22.05/44.1/48 kHz ({f.BitsPerSample}-bit, {f.Channels} ch, {f.SamplesPerSec} Hz)");
             Check(pcm.Length >= f.BlockAlign && pcm.Length % f.BlockAlign == 0, $"sound {name}.wav has whole, non-empty sample frames");
-            Check(Wave.CanPlay(f), $"sound {name}.wav: the audio device accepts its format");
+            // CI runners have no audio device: nothing to ask, so only the file checks above apply there.
+            Check(Wave.waveOutGetNumDevs() == 0 || Wave.CanPlay(f), $"sound {name}.wav: the audio device accepts its format");
         }
 
         // WinExe has no console; leave the verdict next to the exe.

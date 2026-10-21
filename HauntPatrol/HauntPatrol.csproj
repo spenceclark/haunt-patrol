@@ -21,9 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Assets are loaded from disk so artwork can be swapped without a rebuild. -->
+    <!-- Assets are loaded from disk so artwork can be swapped without a rebuild; keep them out of a single-file exe. -->
     <None Remove="Assets\**" />
-    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>
