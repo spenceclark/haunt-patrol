@@ -8,6 +8,10 @@ Your applications stay usable the whole time. Transparent areas click through to
 the overlays never take keyboard focus, and penalty effects are entirely click-through. Nothing on your
 system is changed.
 
+Created for Hackyard #5 [https://hackyard.tech/yards/yard-5](https://hackyard.tech/yards/yard-5)
+
+Demo Reel [https://www.youtube.com/watch?v=VL2qzDbhFbE](https://www.youtube.com/watch?v=VL2qzDbhFbE)
+
 ## Encounters
 
 | Encounter | How to win | If you fail or ignore it |
